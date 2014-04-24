@@ -164,20 +164,29 @@ class CTsimRadon:
 		emmitter_pos = (0, int((height + heightpad)/2) )
 		detector_pos = [width+widthpad - 1, int((height + heightpad)/2 - (self.__detNum*self.__detSize)/2 + np.floor(self.__detSize/2)) ]
 
-		#DEBUG
-		padded_rotated[emmitter_pos[1], emmitter_pos[0]:emmitter_pos[0]+10] = max(padded_rotated.flatten())
+		#Debug
+		#padded_rotated[emmitter_pos[1], emmitter_pos[0]:emmitter_pos[0]+10] = max(padded_rotated.flatten())
+		
+		out = np.zeros(self.__detNum)
 		for i in range(0, self.__detNum):
-			padded_rotated[detector_pos[1], detector_pos[0]-10:detector_pos[0]] = max(padded_rotated.flatten())
+			#Debug
+			#padded_rotated[detector_pos[1], detector_pos[0]-10:detector_pos[0]] = max(padded_rotated.flatten())
+			
+			out[i] = self.__brasenham(emiter_pos, detector_pos)
 			detector_pos[1] += self.__detSize
-		print emmitter_pos
-		print detector_pos
+
 		plt.imshow(padded_rotated, cmap=plt.cm.Greys_r)
 		plt.show()
-		#END DEBUG
-
+		
 
 		
 		return rotated.sum(0)[::-1]
+
+	def __brasenham(self, p1, p2):
+		s = 0
+		
+
+		return s
 
 	def __iradon(self, radon_image, theta=None, output_size=None,
 			   filter="ramp", interpolation="linear"):
