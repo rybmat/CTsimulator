@@ -13,14 +13,13 @@ from skimage.transform._warps_cy import _warp_fast
 
 class CTsimRadon:
 
-	def __init__(self, image_path, angle, detNum, detSize):
+	def __init__(self, image_path, angle, step, detNum, detSize):
 		self.__detNum = detNum
 		self.__detSize = detSize
 		self.__image = imread(image_path, as_grey=True)
 		self.__image = rescale(self.__image, scale=0.4)
 		self.__angle = angle
 		#self.__theta = np.linspace(0., angle, max(self.__image.shape), endpoint=True)
-		step=90;
 		self.__theta = np.linspace(0., angle, (angle+1)/step, endpoint=True)
 		plt.figure(figsize=(10, 10))
 
@@ -116,7 +115,8 @@ class CTsimRadon:
 		#plt.imshow(padded_image, cmap=plt.cm.Greys_r)
 		#plt.show()
 		
-		out = np.zeros((max(padded_image.shape), len(theta)))
+		#out = np.zeros((max(padded_image.shape), len(theta)))
+		out = np.zeros((self.__detNum, len(theta)))
 
 		h, w = padded_image.shape
 		dh, dw = h // 2, w // 2
@@ -172,19 +172,72 @@ class CTsimRadon:
 			#Debug
 			#padded_rotated[detector_pos[1], detector_pos[0]-10:detector_pos[0]] = max(padded_rotated.flatten())
 			
-			out[i] = self.__brasenham(emiter_pos, detector_pos)
+			out[i] = self.__brasenham(emmitter_pos, detector_pos, padded_rotated)
 			detector_pos[1] += self.__detSize
 
-		plt.imshow(padded_rotated, cmap=plt.cm.Greys_r)
-		plt.show()
-		
+		#plt.imshow(padded_rotated, cmap=plt.cm.Greys_r)
+		#plt.show()
 
 		
-		return rotated.sum(0)[::-1]
+		return out
+		#return rotated.sum(0)[::-1]
 
-	def __brasenham(self, p1, p2):
+	def __brasenham(self, p1, p2, image):
 		s = 0
-		
+		x1 = p1[0]
+		y1 = p1[1]
+		x2 = p2[0]
+		y2 = p2[1]
+		x = x1
+		y = y1
+		# ustalenie kierunku rysowania
+		if (x1 < x2):
+			xi = 1
+			dx = x2 - x1
+		else:
+			xi = -1
+			dx = x1 - x2
+		# ustalenie kierunku rysowania
+		if (y1 < y2):
+			yi = 1
+			dy = y2 - y1
+		else:
+			yi = -1
+			dy = y1 - y2
+		# pierwszy piksel
+		s += image[y,x]
+		# os wiodaca OX
+		if (dx > dy):
+			ai = (dy - dx) * 2
+			bi = dy * 2
+			d = bi - dx
+			# petla po kolejnych x
+			while (x != x2):
+				# test wspolczynnika
+				if (d >= 0):
+					x += xi
+					y += yi
+					d += ai
+				else:
+					d += bi
+					x += xi
+				s += image[y,x]
+		# os wiodaca OY
+		else:
+			ai = ( dx - dy ) * 2
+			bi = dx * 2
+			d = bi - dy
+			# petla po kolejnych y
+			while (y != y2):
+				# test wspolczynnika
+				if (d >= 0):
+					x += xi
+					y += yi
+					d += ai
+				else:
+					d += bi
+					y += yi
+				s += image[y,x]
 
 		return s
 
