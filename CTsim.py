@@ -13,14 +13,17 @@ from skimage.transform._warps_cy import _warp_fast
 
 class CTsimRadon:
 
-	def __init__(self, image_path, angle):
+	def __init__(self, image_path, angle, detNum, detSize):
+		self.__detNum = detNum
+		self.__detSize = detSize
 		self.__image = imread(image_path, as_grey=True)
 		self.__image = rescale(self.__image, scale=0.4)
 		self.__angle = angle
 		#self.__theta = np.linspace(0., angle, max(self.__image.shape), endpoint=True)
-		step=18;
+		step=90;
 		self.__theta = np.linspace(0., angle, (angle+1)/step, endpoint=True)
 		plt.figure(figsize=(10, 10))
+
 
 	def __acquisition(self):
 		self.__sinogram = self.__radon(self.__image, theta=self.__theta)#, circle=True)
@@ -147,7 +150,7 @@ class CTsimRadon:
 	def __radon_acquisition(self, rotated):
 		
 		height, width = rotated.shape
-		heightpad = height
+		heightpad = self.__detSize*self.__detNum - height > 0 and self.__detSize*self.__detNum - height or 0
 		widthpad = width
 		padded_rotated = np.zeros((int(height + heightpad),
 								 int(width + widthpad)))
@@ -158,9 +161,21 @@ class CTsimRadon:
 
 		padded_rotated[y0:y1, x0:x1] = rotated
 		
-		
-		plt.imshow(padded_rotated)
+		emmitter_pos = (0, int((height + heightpad)/2) )
+		detector_pos = [width+widthpad - 1, int((height + heightpad)/2 - (self.__detNum*self.__detSize)/2 + np.floor(self.__detSize/2)) ]
+
+		#DEBUG
+		padded_rotated[emmitter_pos[1], emmitter_pos[0]:emmitter_pos[0]+10] = max(padded_rotated.flatten())
+		for i in range(0, self.__detNum):
+			padded_rotated[detector_pos[1], detector_pos[0]-10:detector_pos[0]] = max(padded_rotated.flatten())
+			detector_pos[1] += self.__detSize
+		print emmitter_pos
+		print detector_pos
+		plt.imshow(padded_rotated, cmap=plt.cm.Greys_r)
 		plt.show()
+		#END DEBUG
+
+
 		
 		return rotated.sum(0)[::-1]
 
