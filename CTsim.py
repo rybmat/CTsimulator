@@ -18,7 +18,7 @@ class CTsimRadon:
 		self.__image = rescale(self.__image, scale=0.4)
 		self.__angle = angle
 		#self.__theta = np.linspace(0., angle, max(self.__image.shape), endpoint=True)
-		step=1;
+		step=18;
 		self.__theta = np.linspace(0., angle, (angle+1)/step, endpoint=True)
 		plt.figure(figsize=(10, 10))
 
@@ -55,6 +55,7 @@ class CTsimRadon:
 		plt.subplot(223)
 		plt.title("Reconstruction\nFiltered back projection")
 		plt.imshow(self.__reconstruction_fbp, cmap=plt.cm.Greys_r)
+		
 		
 		plt.subplot(224)
 		plt.title("Reconstruction error\nFiltered back projection")
@@ -108,6 +109,10 @@ class CTsimRadon:
 				 int((np.ceil(widthpad / 2) + width))
 
 		padded_image[y0:y1, x0:x1] = image
+		
+		#plt.imshow(padded_image, cmap=plt.cm.Greys_r)
+		#plt.show()
+		
 		out = np.zeros((max(padded_image.shape), len(theta)))
 
 		h, w = padded_image.shape
@@ -132,11 +137,32 @@ class CTsimRadon:
 		for i in range(len(theta)):
 			rotated = _warp_fast(padded_image,
 								 np.linalg.inv(build_rotation(-theta[i])))
+			
 
-			out[:, i] = rotated.sum(0)[::-1]
+			out[:, i] = self.__radon_acquisition(rotated)
 
 		return out
+		
+		
+	def __radon_acquisition(self, rotated):
+		
+		height, width = rotated.shape
+		heightpad = height
+		widthpad = width
+		padded_rotated = np.zeros((int(height + heightpad),
+								 int(width + widthpad)))
+		y0, y1 = int(np.ceil(heightpad / 2)), \
+				 int((np.ceil(heightpad / 2) + height))
+		x0, x1 = int((np.ceil(widthpad / 2))), \
+				 int((np.ceil(widthpad / 2) + width))
 
+		padded_rotated[y0:y1, x0:x1] = rotated
+		
+		
+		plt.imshow(padded_rotated)
+		plt.show()
+		
+		return rotated.sum(0)[::-1]
 
 	def __iradon(self, radon_image, theta=None, output_size=None,
 			   filter="ramp", interpolation="linear"):
