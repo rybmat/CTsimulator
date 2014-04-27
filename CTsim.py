@@ -4,16 +4,19 @@ import matplotlib.pyplot as plt
 
 from skimage.io import imread
 from skimage import data_dir
-from skimage.transform import rescale
+from skimage.transform import rescale, warp
 #from skimage.transform import radon, iradon
 
 
 from scipy.fftpack import fftshift, fft, ifft
 from skimage.transform._warps_cy import _warp_fast
+import time
 
 class CTsimRadon:
 
-	def __init__(self, image_path, angle, step, detNum, detSize):
+	def __init__(self, image_path, angle, step, detNum, detSize, emmDist=500, detDist=500):
+		self.__detectorsDistance = detDist
+		self.__emmiterDistance = emmDist
 		self.__detNum = detNum
 		self.__detSize = detSize
 		self.__image = imread(image_path, as_grey=True)
@@ -24,6 +27,20 @@ class CTsimRadon:
 		plt.figure(figsize=(10, 10))
 
 
+	def run(self):
+		start = time.clock()
+		
+		self.__acquisition()
+		self.__showSinogram()
+		self.__reconstruction()
+		self.__showReconstruction()
+		
+		end = time.clock()
+		print "time:",end-start
+		
+		plt.show()
+
+
 	def __acquisition(self):
 		self.__sinogram = self.__radon(self.__image, theta=self.__theta)#, circle=True)
 		#print self.__theta
@@ -31,8 +48,8 @@ class CTsimRadon:
 
 	def __reconstruction(self):
 		self.__reconstruction_fbp = self.__iradon(self.__sinogram, theta=self.__theta)#, circle=True)
-		self.__error = self.__reconstruction_fbp - self.__image
-		print('FBP rms reconstruction error: %.3g' % np.sqrt(np.mean(self.__error**2)))
+		#self.__error = self.__reconstruction_fbp - self.__image
+		#print('FBP rms reconstruction error: %.3g' % np.sqrt(np.mean(self.__error**2)))
 
 
 	def __showSinogram(self, show=False):
@@ -61,63 +78,39 @@ class CTsimRadon:
 		
 		plt.subplot(224)
 		plt.title("Reconstruction error\nFiltered back projection")
-		plt.imshow(self.__reconstruction_fbp - self.__image, cmap=plt.cm.Greys_r, **self.__imkwargs)
+		#plt.imshow(self.__reconstruction_fbp - self.__image, cmap=plt.cm.Greys_r, **self.__imkwargs)
 		
 		if show:
 			plt.show()
 
-	def run(self):
-		self.__acquisition()
-		self.__showSinogram()
-		self.__reconstruction()
-		self.__showReconstruction()
-		plt.show()
-
 
 	def __radon(self, image, theta=None):
-		"""
-		Calculates the radon transform of an image given specified
-		projection angles.
 
-		Parameters
-		----------
-		image : array_like, dtype=float
-			Input image.
-		theta : array_like, dtype=float, optional (default np.arange(180))
-			Projection angles (in degrees).
-
-		Returns
-		-------
-		output : ndarray
-			Radon transform (sinogram).
-
-		"""
 		if image.ndim != 2:
 			raise ValueError('The input image must be 2-D')
 		if theta is None:
-			theta = np.arange(180)
+			raise ValueError('there is no theta in __radon!!!')
 
 		height, width = image.shape
 		diagonal = np.sqrt(height**2 + width**2)
+		
 		heightpad = np.ceil(diagonal - height)
 		widthpad = np.ceil(diagonal - width)
-		padded_image = np.zeros((int(height + heightpad),
-								 int(width + widthpad)))
-		y0, y1 = int(np.ceil(heightpad / 2)), \
-				 int((np.ceil(heightpad / 2) + height))
-		x0, x1 = int((np.ceil(widthpad / 2))), \
-				 int((np.ceil(widthpad / 2) + width))
-
+		
+		#padding image, so whole img is visible to "rays" while rotating
+		padded_image = np.zeros((int(height + heightpad), int(width + widthpad)))
+		y0, y1 = int(np.ceil(heightpad / 2)), int((np.ceil(heightpad / 2) + height))
+		x0, x1 = int((np.ceil(widthpad / 2))), int((np.ceil(widthpad / 2) + width))
 		padded_image[y0:y1, x0:x1] = image
 		
 		#plt.imshow(padded_image, cmap=plt.cm.Greys_r)
 		#plt.show()
 		
-		#out = np.zeros((max(padded_image.shape), len(theta)))
-		out = np.zeros((self.__detNum, len(theta)))
+		sinogram = np.zeros((self.__detNum, len(theta)))
 
 		h, w = padded_image.shape
 		dh, dw = h // 2, w // 2
+		
 		shift0 = np.array([[1, 0, -dw],
 						   [0, 1, -dh],
 						   [0, 0, 1]])
@@ -125,6 +118,7 @@ class CTsimRadon:
 		shift1 = np.array([[1, 0, dw],
 						   [0, 1, dh],
 						   [0, 0, 1]])
+
 
 		def build_rotation(theta):
 			T = -np.deg2rad(theta)
@@ -134,83 +128,66 @@ class CTsimRadon:
 						  [0, 0, 1]])
 
 			return shift1.dot(R).dot(shift0)
+		
 
 		for i in xrange(len(theta)):
-			rotated = _warp_fast(padded_image,
-								 np.linalg.inv(build_rotation(-theta[i])))
-			
+			# apply transformation matrix to img, requires inverse of transformation matrix
+			#rotated = _warp_fast(padded_image, np.linalg.inv(build_rotation(-theta[i])))
+			rotated = warp(padded_image, np.linalg.inv(build_rotation(-theta[i])))		
 
-			out[:, i] = self.__radon_acquisition(rotated)
+			sinogram[:, i] = self.__radon_view(rotated)
 
-		return out
+		return sinogram
 		
 		
-	def __radon_acquisition(self, rotated):
-		
+	def __radon_view(self, rotated):		
 		height, width = rotated.shape
-		heightpad = self.__detSize*self.__detNum - height > 0 and self.__detSize*self.__detNum - height + 1 or 0
-		widthpad = 10*width
-		padded_rotated = np.zeros((int(height + heightpad),
-								 int(width + widthpad)))
-		y0, y1 = int(np.ceil(heightpad / 2)), \
-				 int((np.ceil(heightpad / 2) + height))
-		x0, x1 = int((np.ceil(widthpad / 2))), \
-				 int((np.ceil(widthpad / 2) + width))
-
-		padded_rotated[y0:y1, x0:x1] = rotated
 		
-		emmitter_pos = (0, int((height + heightpad)/2) )
-		detector_pos = [width+widthpad - 1, int((height + heightpad)/2 - (self.__detNum*self.__detSize)/2 + np.floor(self.__detSize/2)) ]
+		emmitter_pos = (-self.__emmiterDistance, int(height/2) )
+		detector_pos = [width + self.__detectorsDistance, int(height/2 - (self.__detNum*self.__detSize)/2 + np.floor(self.__detSize/2)) ]
 
 		#Debug
-		#padded_rotated[emmitter_pos[1], emmitter_pos[0]:emmitter_pos[0]+100] = max(padded_rotated.flatten())
 		#print emmitter_pos, detector_pos
 
-		out = np.zeros(self.__detNum)
+		view = np.zeros(self.__detNum)
 		for i in xrange(0, self.__detNum):
-			#padded_rotated[detector_pos[1], detector_pos[0]-100:detector_pos[0]] = max(padded_rotated.flatten())
-
-			out[i] = self.__brasenham(emmitter_pos, detector_pos, padded_rotated)
+			view[i] = self.__brasenham(emmitter_pos, detector_pos, rotated)
 			detector_pos[1] += self.__detSize
-		
-		#plt.imshow(padded_rotated, cmap=plt.cm.Greys_r)
-		#plt.show()
 
-		return out
-		#return rotated.sum(0)[::-1]
+		return view
 
 	def __brasenham(self, p1, p2, image):
 		s = 0
-		x1 = p1[0]
-		y1 = p1[1]
-		x2 = p2[0]
-		y2 = p2[1]
-		x = x1
-		y = y1
-		# ustalenie kierunku rysowania
+		
+		x1, y1 = p1[0], p1[1]
+		x2, y2 = p2[0], p2[1]
+		x, y = x1, y1
+
+		# direction of walking through pixels
 		if (x1 < x2):
 			xi = 1
 			dx = x2 - x1
 		else:
 			xi = -1
 			dx = x1 - x2
-		# ustalenie kierunku rysowania
+
+		# direction of walking through pixels
 		if (y1 < y2):
 			yi = 1
 			dy = y2 - y1
 		else:
 			yi = -1
 			dy = y1 - y2
-		# pierwszy piksel
-		s += image[y,x]
-		# os wiodaca OX
+
+		if x >= 0 and x < image.shape[1] and y >= 0 and y < image.shape[0]:
+			s += image[y,x]
+
 		if (dx > dy):
 			ai = (dy - dx) * 2
 			bi = dy * 2
 			d = bi - dx
-			# petla po kolejnych x
-			while (x != x2):
-				# test wspolczynnika
+
+			while (x != x2 and x < image.shape[1]):
 				if (d >= 0):
 					x += xi
 					y += yi
@@ -218,15 +195,14 @@ class CTsimRadon:
 				else:
 					d += bi
 					x += xi
-				s += image[y,x]
-		# os wiodaca OY
+				if x >= 0 and x < image.shape[1] and y >= 0 and y < image.shape[0]:
+					s += image[y,x]
 		else:
 			ai = ( dx - dy ) * 2
 			bi = dx * 2
 			d = bi - dy
-			# petla po kolejnych y
-			while (y != y2):
-				# test wspolczynnika
+
+			while (y != y2 and y < image.shape[0]):
 				if (d >= 0):
 					x += xi
 					y += yi
@@ -234,7 +210,8 @@ class CTsimRadon:
 				else:
 					d += bi
 					y += yi
-				s += image[y,x]
+				if x >= 0 and x < image.shape[1] and y >= 0 and y < image.shape[0]:
+					s += image[y,x]
 
 		return s
 
@@ -290,7 +267,7 @@ class CTsimRadon:
 							 "projections in ``radon_image``.")
 
 		th = (np.pi / 180.0) * theta
-		print th
+		#print th
 		
 		# if output size not specified, estimate from input radon image
 		if not output_size:
