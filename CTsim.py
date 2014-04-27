@@ -74,8 +74,6 @@ class CTsimRadon:
 		plt.show()
 
 
-
-
 	def __radon(self, image, theta=None):
 		"""
 		Calculates the radon transform of an image given specified
@@ -137,7 +135,7 @@ class CTsimRadon:
 
 			return shift1.dot(R).dot(shift0)
 
-		for i in range(len(theta)):
+		for i in xrange(len(theta)):
 			rotated = _warp_fast(padded_image,
 								 np.linalg.inv(build_rotation(-theta[i])))
 			
@@ -150,8 +148,8 @@ class CTsimRadon:
 	def __radon_acquisition(self, rotated):
 		
 		height, width = rotated.shape
-		heightpad = self.__detSize*self.__detNum - height > 0 and self.__detSize*self.__detNum - height or 0
-		widthpad = width
+		heightpad = self.__detSize*self.__detNum - height > 0 and self.__detSize*self.__detNum - height + 1 or 0
+		widthpad = 10*width
 		padded_rotated = np.zeros((int(height + heightpad),
 								 int(width + widthpad)))
 		y0, y1 = int(np.ceil(heightpad / 2)), \
@@ -165,20 +163,19 @@ class CTsimRadon:
 		detector_pos = [width+widthpad - 1, int((height + heightpad)/2 - (self.__detNum*self.__detSize)/2 + np.floor(self.__detSize/2)) ]
 
 		#Debug
-		#padded_rotated[emmitter_pos[1], emmitter_pos[0]:emmitter_pos[0]+10] = max(padded_rotated.flatten())
-		
+		#padded_rotated[emmitter_pos[1], emmitter_pos[0]:emmitter_pos[0]+100] = max(padded_rotated.flatten())
+		#print emmitter_pos, detector_pos
+
 		out = np.zeros(self.__detNum)
-		for i in range(0, self.__detNum):
-			#Debug
-			#padded_rotated[detector_pos[1], detector_pos[0]-10:detector_pos[0]] = max(padded_rotated.flatten())
-			
+		for i in xrange(0, self.__detNum):
+			#padded_rotated[detector_pos[1], detector_pos[0]-100:detector_pos[0]] = max(padded_rotated.flatten())
+
 			out[i] = self.__brasenham(emmitter_pos, detector_pos, padded_rotated)
 			detector_pos[1] += self.__detSize
-
+		
 		#plt.imshow(padded_rotated, cmap=plt.cm.Greys_r)
 		#plt.show()
 
-		
 		return out
 		#return rotated.sum(0)[::-1]
 
@@ -293,12 +290,15 @@ class CTsimRadon:
 							 "projections in ``radon_image``.")
 
 		th = (np.pi / 180.0) * theta
+		print th
+		
 		# if output size not specified, estimate from input radon image
 		if not output_size:
 			output_size = int(np.floor(np.sqrt((radon_image.shape[0])**2 / 2.0)))
 		n = radon_image.shape[0]
 
 		img = radon_image.copy()
+		
 		# resize image to next power of two for fourier analysis
 		# speeds up fourier and lessens artifacts
 		order = max(64., 2**np.ceil(np.log(2 * n) / np.log(2)))
@@ -341,15 +341,15 @@ class CTsimRadon:
 		xpr = X - int(output_size) // 2
 		ypr = Y - int(output_size) // 2
 
-		# reconstruct image by interpolation
+#		# reconstruct image by interpolation
 		if interpolation == "nearest":
-			for i in range(len(theta)):
+			for i in xrange(len(theta)):
 				k = np.round(mid_index + xpr * np.sin(th[i]) - ypr * np.cos(th[i]))
 				reconstructed += radon_filtered[
 					((((k > 0) & (k < n)) * k) - 1).astype(np.int), i]
 
 		elif interpolation == "linear":
-			for i in range(len(theta)):
+			for i in xrange(len(theta)):
 				t = xpr * np.sin(th[i]) - ypr * np.cos(th[i])
 				a = np.floor(t)
 				b = mid_index + a
@@ -360,5 +360,15 @@ class CTsimRadon:
 
 		else:
 			raise ValueError("Unknown interpolation: %s" % interpolation)
+
+#		for i in xrange(len(theta)):
+#			t = ypr * np.cos(th[i]) - xpr * np.sin(th[i])
+#			x = np.arange(radon_filtered.shape[0]) - mid_index
+#			if interpolation == 'linear':
+#				backprojected = np.interp(t, x, radon_filtered[:, i], left=0, right=0)
+#			else:
+#				interpolant = interp1d(x, radon_filtered[:, i], kind=interpolation, bounds_error=False, fill_value=0)
+#				backprojected = interpolant(t)
+#			reconstructed += backprojected
 
 		return reconstructed * np.pi / (2 * len(th))
