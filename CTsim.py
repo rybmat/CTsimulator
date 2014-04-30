@@ -25,6 +25,7 @@ class CTsimRadon:
 		#self.__theta = np.linspace(0., angle, max(self.__image.shape), endpoint=True)
 		self.__theta = np.linspace(0., angle, (angle+1)/step, endpoint=True)
 		plt.figure(figsize=(10, 10))
+		
 
 
 	def run(self):
@@ -121,7 +122,7 @@ class CTsimRadon:
 
 
 		def build_rotation(theta):
-			T = -np.deg2rad(theta)
+			T = -np.deg2rad(theta+90)
 
 			R = np.array([[np.cos(T), -np.sin(T), 0],
 						  [np.sin(T), np.cos(T), 0],
@@ -132,8 +133,8 @@ class CTsimRadon:
 
 		for i in xrange(len(theta)):
 			# apply transformation matrix to img, requires inverse of transformation matrix
-			#rotated = _warp_fast(padded_image, np.linalg.inv(build_rotation(-theta[i])))
-			rotated = warp(padded_image, np.linalg.inv(build_rotation(-theta[i])))		
+			rotated = _warp_fast(padded_image, np.linalg.inv(build_rotation(-theta[i])))
+			#rotated = warp(padded_image, np.linalg.inv(build_rotation(-theta[i])))		
 
 			sinogram[:, i] = self.__radon_view(rotated)
 
@@ -281,34 +282,63 @@ class CTsimRadon:
 		order = max(64., 2**np.ceil(np.log(2 * n) / np.log(2)))
 		# zero pad input image
 		img.resize((order, img.shape[1]))
-		# construct the fourier filter
+		
 
-		f = fftshift(abs(np.mgrid[-1:1:2 / order])).reshape(-1, 1)
-		w = 2 * np.pi * f
-		# start from first element to avoid divide by zero
-		if filter == "ramp":
-			pass
-		elif filter == "shepp-logan":
-			f[1:] = f[1:] * np.sin(w[1:] / 2) / (w[1:] / 2)
-		elif filter == "cosine":
-			f[1:] = f[1:] * np.cos(w[1:] / 2)
-		elif filter == "hamming":
-			f[1:] = f[1:] * (0.54 + 0.46 * np.cos(w[1:]))
-		elif filter == "hann":
-			f[1:] = f[1:] * (1 + np.cos(w[1:])) / 2
-		elif filter == None:
-			f[1:] = 1
-		else:
-			raise ValueError("Unknown filter: %s" % filter)
 
-		filter_ft = np.tile(f, (1, len(theta)))
 
-		# apply filter in fourier domain
-		projection = fft(img, axis=0) * filter_ft
-		radon_filtered = np.real(ifft(projection, axis=0))
 
+
+#		#construct the fourier filter
+#		f = fftshift(abs(np.mgrid[-1:1:2 / order])).reshape(-1, 1)
+#		w = 2 * np.pi * f
+#		# start from first element to avoid divide by zero
+#		if filter == "ramp":
+#			pass
+#		elif filter == "shepp-logan":
+#			f[1:] = f[1:] * np.sin(w[1:] / 2) / (w[1:] / 2)
+#		elif filter == "cosine":
+#			f[1:] = f[1:] * np.cos(w[1:] / 2)
+#		elif filter == "hamming":
+#			f[1:] = f[1:] * (0.54 + 0.46 * np.cos(w[1:]))
+#		elif filter == "hann":
+#			f[1:] = f[1:] * (1 + np.cos(w[1:])) / 2
+#		elif filter == None:
+#			f[1:] = 1
+#		else:
+#			raise ValueError("Unknown filter: %s" % filter)
+#
+#		filter_ft = np.tile(f, (1, len(theta)))
+#
+#		# apply filter in fourier domain
+#		projection = fft(img, axis=0) * filter_ft
+#		radon_filtered = np.real(ifft(projection, axis=0))
+		
+		
+		
+		
+		
+		filter_size = 10
+		filter_tab = np.zeros((2*filter_size+1))
+		for k in xrange(-filter_size,filter_size):
+			if(k%2!=0):
+				filter_tab[k+10] = -4.0 / (np.pi**2 * k**2)  
+		filter_tab[filter_size]=1
+		
+		radon_filtered = np.zeros((img.shape[0], img.shape[1]))
+		for i in xrange(img.shape[1]):
+			radon_filtered[:,i] = np.convolve(img[:,i],filter_tab, mode='same') 
+
+
+
+
+	
 		# resize filtered image back to original size
 		radon_filtered = radon_filtered[:radon_image.shape[0], :]
+		
+		#plt.show()
+		#plt.imshow(radon_filtered, cmap=plt.cm.Greys_r)
+		#plt.show()
+		
 		reconstructed = np.zeros((output_size, output_size))
 		mid_index = np.ceil(n / 2.0)
 
