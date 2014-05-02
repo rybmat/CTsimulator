@@ -5,8 +5,6 @@ import matplotlib.pyplot as plt
 from skimage.io import imread
 from skimage import data_dir
 from skimage.transform import rescale, warp
-#from skimage.transform import radon, iradon
-
 
 from scipy.fftpack import fftshift, fft, ifft
 from skimage.transform._warps_cy import _warp_fast
@@ -48,9 +46,12 @@ class CTsimRadon:
 		#print self.__sinogram
 
 	def __reconstruction(self):
-		self.__reconstruction_fbp = self.__iradon(self.__sinogram, theta=self.__theta)
-		#self.__error = self.__reconstruction_fbp - self.__image
-		#print('FBP rms reconstruction error: %.3g' % np.sqrt(np.mean(self.__error**2)))
+		self.__reconstruction = self.__iradon(self.__sinogram, theta=self.__theta, output_size=self.__image.shape[0])
+		
+		self.__image = self.__normalize_array(self.__image)
+		self.__error = self.__reconstruction - self.__image
+
+		print('FBP rms reconstruction error: %.3g' % np.sqrt(np.mean(self.__error**2)))
 
 
 	def __showSinogram(self, show=False):
@@ -74,16 +75,22 @@ class CTsimRadon:
 		
 		plt.subplot(223)
 		plt.title("Reconstruction\nFiltered back projection")
-		plt.imshow(self.__reconstruction_fbp, cmap=plt.cm.Greys_r)
+		plt.imshow(self.__reconstruction, cmap=plt.cm.Greys_r)
 		
 		
 		plt.subplot(224)
 		plt.title("Reconstruction error\nFiltered back projection")
-		#plt.imshow(self.__reconstruction_fbp - self.__image, cmap=plt.cm.Greys_r, **self.__imkwargs)
+		plt.imshow(self.__reconstruction - self.__image, cmap=plt.cm.Greys_r, **self.__imkwargs)
 		
 		if show:
 			plt.show()
 
+	def __normalize_array(self, a):
+		a_min = min(a.flatten())
+		a_max = max(a.flatten())
+
+		arr = (a - a.min())/np.ptp(a)
+		return arr
 
 	def __radon(self, image, theta=None):
 
@@ -112,33 +119,32 @@ class CTsimRadon:
 		h, w = padded_image.shape
 		dh, dw = h // 2, w // 2
 		
-		shift0 = np.array([[1, 0, -dw],
-						   [0, 1, -dh],
-						   [0, 0, 1]])
-
-		shift1 = np.array([[1, 0, dw],
-						   [0, 1, dh],
-						   [0, 0, 1]])
-
-
-		def build_rotation(theta):
-			T = -np.deg2rad(theta+90)
-
-			R = np.array([[np.cos(T), -np.sin(T), 0],
-						  [np.sin(T), np.cos(T), 0],
-						  [0, 0, 1]])
-
-			return shift1.dot(R).dot(shift0)
-		
 
 		for i in xrange(len(theta)):
 			# apply transformation matrix to img, requires inverse of transformation matrix
-			rotated = _warp_fast(padded_image, np.linalg.inv(build_rotation(-theta[i])))
-			#rotated = warp(padded_image, np.linalg.inv(build_rotation(-theta[i])))		
+			rotated = _warp_fast(padded_image, np.linalg.inv(self.__build_rotation(-theta[i], dw, dh)))
+			#rotated = warp(padded_image, np.linalg.inv(self.__build_rotation(-theta[i], dw, dh)))		
 
 			sinogram[:, i] = self.__radon_view(rotated)
 
 		return sinogram
+
+	def __build_rotation(self, theta, dw, dh):
+		shift0 = np.array([[1, 0, -dw],
+					   		[0, 1, -dh],
+					   		[0, 0, 1]])
+
+		shift1 = np.array([[1, 0, dw],
+					   		[0, 1, dh],
+					   		[0, 0, 1]])
+		
+		T = -np.deg2rad(theta)
+
+		R = np.array([[np.cos(T), -np.sin(T), 0],
+					  [np.sin(T), np.cos(T), 0],
+					  [0, 0, 1]])
+
+		return shift1.dot(R).dot(shift0)
 		
 		
 	def __radon_view(self, rotated):		
@@ -217,39 +223,29 @@ class CTsimRadon:
 		return s
 
 	def __iradon(self, radon_image, theta=None, output_size=None, fft_filter=False,
-			   filter="ramp", interpolation="linear"):
+			   filter="ramp"):
 
 		if radon_image.ndim != 2:
 			raise ValueError('The input image must be 2-D')
-
-		if theta is None:
-			m, n = radon_image.shape
-			theta = np.linspace(0, 180, n, endpoint=False)
-		else:
-			theta = np.asarray(theta)
 
 		if len(theta) != radon_image.shape[1]:
 			raise ValueError("The given ``theta`` does not match the number of projections in ``radon_image``.")
 
 		th = (np.pi / 180.0) * theta
-		#print th
-		
-		# if output size not specified, estimate from input radon image
-		if not output_size:
-			output_size = int(np.floor(np.sqrt((radon_image.shape[0])**2 / 2.0)))
+
 		n = radon_image.shape[0]
 
 		img = radon_image.copy()
-		
-		# resize image to next power of two for fourier analysis
-		# speeds up fourier and lessens artifacts
-		order = max(64., 2**np.ceil(np.log(2 * n) / np.log(2)))
-		# zero pad input image
-		img.resize((order, img.shape[1]))
-		
 
 
 		if fft_filter: #fft filter
+			# resize image to next power of two for fourier analysis
+			# speeds up fourier and lessens artifacts
+			order = max(64., 2**np.ceil(np.log(2 * n) / np.log(2)))
+			# zero pad input image
+			img.resize((order, img.shape[1]))
+
+
 			#construct the fourier filter
 			f = fftshift(abs(np.mgrid[-1:1:2 / order])).reshape(-1, 1)
 			w = 2 * np.pi * f
@@ -275,7 +271,7 @@ class CTsimRadon:
 			projection = fft(img, axis=0) * filter_ft
 			radon_filtered = np.real(ifft(projection, axis=0))
 		
-		else: #our filter
+		else: #normal filter 
 			filter_size = 10
 			filter_tab = np.zeros((2*filter_size+1))
 			for k in xrange(-filter_size,filter_size):
@@ -289,13 +285,8 @@ class CTsimRadon:
 
 	
 
-
 		# resize filtered image back to original size
 		radon_filtered = radon_filtered[:radon_image.shape[0], :]
-		
-		#plt.show()
-		#plt.imshow(radon_filtered, cmap=plt.cm.Greys_r)
-		#plt.show()
 		
 		reconstructed = np.zeros((output_size, output_size))
 		mid_index = np.ceil(n / 2.0)
@@ -307,22 +298,19 @@ class CTsimRadon:
 		ypr = Y - int(output_size) // 2
 
 		# reconstruct image by interpolation
-		if interpolation == "nearest":
-			for i in xrange(len(theta)):
-				k = np.round(mid_index + xpr * np.sin(th[i]) - ypr * np.cos(th[i]))
-				reconstructed += radon_filtered[ ((((k > 0) & (k < n)) * k) - 1).astype(np.int), i ]
-
-		elif interpolation == "linear":
-			for i in xrange(len(theta)):
-				t = xpr * np.sin(th[i]) - ypr * np.cos(th[i])
-				a = np.floor(t)
-				b = mid_index + a
-				b0 = ((((b + 1 > 0) & (b + 1 < n)) * (b + 1)) - 1).astype(np.int)
-				b1 = ((((b > 0) & (b < n)) * b) - 1).astype(np.int)
-				reconstructed += (t - a) * radon_filtered[b0, i] + (a - t + 1) * radon_filtered[b1, i]
-
-		else:
-			raise ValueError("Unknown interpolation: %s" % interpolation)
+		for i in xrange(len(theta)):
+			t = xpr * np.sin(th[i]) - ypr * np.cos(th[i])
+			a = np.floor(t)
+			b = mid_index + a
+			b0 = ((((b + 1 > 0) & (b + 1 < n)) * (b + 1)) - 1).astype(np.int)
+			b1 = ((((b > 0) & (b < n)) * b) - 1).astype(np.int)
+			reconstructed += (t - a) * radon_filtered[b0, i] + (a - t + 1) * radon_filtered[b1, i]
 
 
-		return reconstructed * np.pi / (2 * len(th))
+		h, w = reconstructed.shape
+		dh, dw = h // 2, w // 2
+
+		rotated = _warp_fast(reconstructed, np.linalg.inv(self.__build_rotation(90, dw, dh)))
+		#rotated = warp(reconstructed, np.linalg.inv(self.__build_rotation(-90, dw, dh)))
+
+		return self.__normalize_array(rotated * np.pi / (2 * len(th)) )
