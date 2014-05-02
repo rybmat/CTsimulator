@@ -37,18 +37,18 @@ class CTsimRadon:
 		self.__showReconstruction()
 		
 		end = time.clock()
-		print "time:",end-start
+		print "time:", end-start
 		
 		plt.show()
 
 
 	def __acquisition(self):
-		self.__sinogram = self.__radon(self.__image, theta=self.__theta)#, circle=True)
+		self.__sinogram = self.__radon(self.__image, theta=self.__theta)
 		#print self.__theta
 		#print self.__sinogram
 
 	def __reconstruction(self):
-		self.__reconstruction_fbp = self.__iradon(self.__sinogram, theta=self.__theta)#, circle=True)
+		self.__reconstruction_fbp = self.__iradon(self.__sinogram, theta=self.__theta)
 		#self.__error = self.__reconstruction_fbp - self.__image
 		#print('FBP rms reconstruction error: %.3g' % np.sqrt(np.mean(self.__error**2)))
 
@@ -216,44 +216,9 @@ class CTsimRadon:
 
 		return s
 
-	def __iradon(self, radon_image, theta=None, output_size=None,
+	def __iradon(self, radon_image, theta=None, output_size=None, fft_filter=False,
 			   filter="ramp", interpolation="linear"):
-		"""
-		Inverse radon transform.
 
-		Reconstruct an image from the radon transform, using the filtered
-		back projection algorithm.
-
-		Parameters
-		----------
-		radon_image : array_like, dtype=float
-			Image containing radon transform (sinogram). Each column of
-			the image corresponds to a projection along a different angle.
-		theta : array_like, dtype=float, optional
-			Reconstruction angles (in degrees). Default: m angles evenly spaced
-			between 0 and 180 (if the shape of `radon_image` is (N, M)).
-		output_size : int
-			Number of rows and columns in the reconstruction.
-		filter : str, optional (default ramp)
-			Filter used in frequency domain filtering. Ramp filter used by default.
-			Filters available: ramp, shepp-logan, cosine, hamming, hann
-			Assign None to use no filter.
-		interpolation : str, optional (default linear)
-			Interpolation method used in reconstruction.
-			Methods available: nearest, linear.
-
-		Returns
-		-------
-		output : ndarray
-		  Reconstructed image.
-
-		Notes
-		-----
-		It applies the fourier slice theorem to reconstruct an image by
-		multiplying the frequency domain of the filter with the FFT of the
-		projection data. This algorithm is called filtered back projection.
-
-		"""
 		if radon_image.ndim != 2:
 			raise ValueError('The input image must be 2-D')
 
@@ -264,8 +229,7 @@ class CTsimRadon:
 			theta = np.asarray(theta)
 
 		if len(theta) != radon_image.shape[1]:
-			raise ValueError("The given ``theta`` does not match the number of "
-							 "projections in ``radon_image``.")
+			raise ValueError("The given ``theta`` does not match the number of projections in ``radon_image``.")
 
 		th = (np.pi / 180.0) * theta
 		#print th
@@ -285,53 +249,47 @@ class CTsimRadon:
 		
 
 
+		if fft_filter: #fft filter
+			#construct the fourier filter
+			f = fftshift(abs(np.mgrid[-1:1:2 / order])).reshape(-1, 1)
+			w = 2 * np.pi * f
+			# start from first element to avoid divide by zero
+			if filter == "ramp":
+				pass
+			elif filter == "shepp-logan":
+				f[1:] = f[1:] * np.sin(w[1:] / 2) / (w[1:] / 2)
+			elif filter == "cosine":
+				f[1:] = f[1:] * np.cos(w[1:] / 2)
+			elif filter == "hamming":
+				f[1:] = f[1:] * (0.54 + 0.46 * np.cos(w[1:]))
+			elif filter == "hann":
+				f[1:] = f[1:] * (1 + np.cos(w[1:])) / 2
+			elif filter == None:
+				f[1:] = 1
+			else:
+				raise ValueError("Unknown filter: %s" % filter)
 
+			filter_ft = np.tile(f, (1, len(theta)))
 
-
-#		#construct the fourier filter
-#		f = fftshift(abs(np.mgrid[-1:1:2 / order])).reshape(-1, 1)
-#		w = 2 * np.pi * f
-#		# start from first element to avoid divide by zero
-#		if filter == "ramp":
-#			pass
-#		elif filter == "shepp-logan":
-#			f[1:] = f[1:] * np.sin(w[1:] / 2) / (w[1:] / 2)
-#		elif filter == "cosine":
-#			f[1:] = f[1:] * np.cos(w[1:] / 2)
-#		elif filter == "hamming":
-#			f[1:] = f[1:] * (0.54 + 0.46 * np.cos(w[1:]))
-#		elif filter == "hann":
-#			f[1:] = f[1:] * (1 + np.cos(w[1:])) / 2
-#		elif filter == None:
-#			f[1:] = 1
-#		else:
-#			raise ValueError("Unknown filter: %s" % filter)
-#
-#		filter_ft = np.tile(f, (1, len(theta)))
-#
-#		# apply filter in fourier domain
-#		projection = fft(img, axis=0) * filter_ft
-#		radon_filtered = np.real(ifft(projection, axis=0))
+			# apply filter in fourier domain
+			projection = fft(img, axis=0) * filter_ft
+			radon_filtered = np.real(ifft(projection, axis=0))
 		
-		
-		
-		
-		
-		filter_size = 10
-		filter_tab = np.zeros((2*filter_size+1))
-		for k in xrange(-filter_size,filter_size):
-			if(k%2!=0):
-				filter_tab[k+10] = -4.0 / (np.pi**2 * k**2)  
-		filter_tab[filter_size]=1
-		
-		radon_filtered = np.zeros((img.shape[0], img.shape[1]))
-		for i in xrange(img.shape[1]):
-			radon_filtered[:,i] = np.convolve(img[:,i],filter_tab, mode='same') 
-
-
-
+		else: #our filter
+			filter_size = 10
+			filter_tab = np.zeros((2*filter_size+1))
+			for k in xrange(-filter_size,filter_size):
+				if(k%2!=0):
+					filter_tab[k+filter_size] = -4.0 / (np.pi**2 * k**2)  
+			filter_tab[filter_size]=1
+			
+			radon_filtered = np.zeros((img.shape[0], img.shape[1]))
+			for i in xrange(img.shape[1]):
+				radon_filtered[:,i] = np.convolve(img[:,i],filter_tab, mode='same') 		
 
 	
+
+
 		# resize filtered image back to original size
 		radon_filtered = radon_filtered[:radon_image.shape[0], :]
 		
@@ -348,12 +306,11 @@ class CTsimRadon:
 		xpr = X - int(output_size) // 2
 		ypr = Y - int(output_size) // 2
 
-#		# reconstruct image by interpolation
+		# reconstruct image by interpolation
 		if interpolation == "nearest":
 			for i in xrange(len(theta)):
 				k = np.round(mid_index + xpr * np.sin(th[i]) - ypr * np.cos(th[i]))
-				reconstructed += radon_filtered[
-					((((k > 0) & (k < n)) * k) - 1).astype(np.int), i]
+				reconstructed += radon_filtered[ ((((k > 0) & (k < n)) * k) - 1).astype(np.int), i ]
 
 		elif interpolation == "linear":
 			for i in xrange(len(theta)):
@@ -362,20 +319,10 @@ class CTsimRadon:
 				b = mid_index + a
 				b0 = ((((b + 1 > 0) & (b + 1 < n)) * (b + 1)) - 1).astype(np.int)
 				b1 = ((((b > 0) & (b < n)) * b) - 1).astype(np.int)
-				reconstructed += (t - a) * radon_filtered[b0, i] + \
-								 (a - t + 1) * radon_filtered[b1, i]
+				reconstructed += (t - a) * radon_filtered[b0, i] + (a - t + 1) * radon_filtered[b1, i]
 
 		else:
 			raise ValueError("Unknown interpolation: %s" % interpolation)
 
-#		for i in xrange(len(theta)):
-#			t = ypr * np.cos(th[i]) - xpr * np.sin(th[i])
-#			x = np.arange(radon_filtered.shape[0]) - mid_index
-#			if interpolation == 'linear':
-#				backprojected = np.interp(t, x, radon_filtered[:, i], left=0, right=0)
-#			else:
-#				interpolant = interp1d(x, radon_filtered[:, i], kind=interpolation, bounds_error=False, fill_value=0)
-#				backprojected = interpolant(t)
-#			reconstructed += backprojected
 
 		return reconstructed * np.pi / (2 * len(th))
