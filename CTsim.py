@@ -24,7 +24,7 @@ class CTsimRadon:
 		self.__theta = np.linspace(0., angle, (angle+1)/step, endpoint=True)
 		plt.figure(figsize=(10, 10))
 		
-
+		self.__image = self.__normalize_array(self.__image)
 
 	def run(self):
 		start = time.clock()
@@ -47,8 +47,6 @@ class CTsimRadon:
 
 	def __reconstruction(self):
 		self.__reconstruction = self.__iradon(self.__sinogram, theta=self.__theta, output_size=self.__image.shape[0])
-		
-		self.__image = self.__normalize_array(self.__image)
 		self.__error = self.__reconstruction - self.__image
 
 		print('FBP rms reconstruction error: %.3g' % np.sqrt(np.mean(self.__error**2)))
@@ -71,7 +69,6 @@ class CTsimRadon:
 			plt.show()
 
 	def __showReconstruction(self, show=False):
-		self.__imkwargs = dict(vmin=-0.2, vmax=0.2)
 		
 		plt.subplot(223)
 		plt.title("Reconstruction\nFiltered back projection")
@@ -80,7 +77,7 @@ class CTsimRadon:
 		
 		plt.subplot(224)
 		plt.title("Reconstruction error\nFiltered back projection")
-		plt.imshow(self.__reconstruction - self.__image, cmap=plt.cm.Greys_r, **self.__imkwargs)
+		plt.imshow(self.__reconstruction - self.__image, cmap=plt.cm.Greys_r)
 		
 		if show:
 			plt.show()
@@ -122,7 +119,7 @@ class CTsimRadon:
 
 		for i in xrange(len(theta)):
 			# apply transformation matrix to img, requires inverse of transformation matrix
-			rotated = _warp_fast(padded_image, np.linalg.inv(self.__build_rotation(-theta[i], dw, dh)))
+			rotated = _warp_fast(padded_image, np.linalg.inv(self.__build_rotation(-theta[i], dw, dh)), mode="wrap")
 			#rotated = warp(padded_image, np.linalg.inv(self.__build_rotation(-theta[i], dw, dh)))		
 
 			sinogram[:, i] = self.__radon_view(rotated)
@@ -150,16 +147,17 @@ class CTsimRadon:
 	def __radon_view(self, rotated):		
 		height, width = rotated.shape
 		
-		emmitter_pos = (-self.__emmiterDistance, int(height/2) )
-		detector_pos = [width + self.__detectorsDistance, int(height/2 - (self.__detNum*self.__detSize)/2 + np.floor(self.__detSize/2)) ]
+		self.__emmitter_pos = (-self.__emmiterDistance, int(height/2) )
+		self.__detector_pos = [width + self.__detectorsDistance, int(height/2 - (self.__detNum*self.__detSize)/2 + np.floor(self.__detSize/2)) ]
 
 		#Debug
-		#print emmitter_pos, detector_pos
+		print self.__emmitter_pos, self.__detector_pos
 
 		view = np.zeros(self.__detNum)
 		for i in xrange(0, self.__detNum):
-			view[i] = self.__brasenham(emmitter_pos, detector_pos, rotated)
-			detector_pos[1] += self.__detSize
+			view[i] = self.__brasenham(self.__emmitter_pos, self.__detector_pos, rotated)
+			self.__detector_pos[1] += self.__detSize
+
 
 		return view
 
