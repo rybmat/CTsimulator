@@ -12,13 +12,15 @@ import time
 
 class CTsimRadon:
 
-	def __init__(self, image_path, angle, step, detNum, detSize, emmDist=500, detDist=500):
+	def __init__(self, image_path, angle, step, detNum, detSize, emmDist=500, detDist=500, fft=False, filter="ramp"):
+		self.__fft = fft
+		self.__fftFilter = filter
 		self.__detectorsDistance = detDist
 		self.__emmiterDistance = emmDist
 		self.__detNum = detNum
 		self.__detSize = detSize
 		self.__image = imread(image_path, as_grey=True)
-		self.__image = rescale(self.__image, scale=0.4)
+		self.__image = rescale(self.__image, scale=1.0)#0.4)
 		self.__angle = angle
 		#self.__theta = np.linspace(0., angle, max(self.__image.shape), endpoint=True)
 		self.__theta = np.linspace(0., angle, (angle+1)/step, endpoint=True)
@@ -46,7 +48,7 @@ class CTsimRadon:
 		#print self.__sinogram
 
 	def __reconstruction(self):
-		self.__reconstruction = self.__iradon(self.__sinogram, theta=self.__theta, output_size=self.__image.shape[0])
+		self.__reconstruction = self.__iradon(self.__sinogram, theta=self.__theta, output_size=self.__image.shape[0], fft_filter=self.__fft, filter=self.__fftFilter)
 		self.__error = self.__reconstruction - self.__image
 
 		print('FBP rms reconstruction error: %.3g' % np.sqrt(np.mean(self.__error**2)))
@@ -147,16 +149,17 @@ class CTsimRadon:
 	def __radon_view(self, rotated):		
 		height, width = rotated.shape
 		
-		self.__emmitter_pos = (-self.__emmiterDistance, int(height/2) )
-		self.__detector_pos = [width + self.__detectorsDistance, int(height/2 - (self.__detNum*self.__detSize)/2 + np.floor(self.__detSize/2)) ]
+		emmitter_pos = (-self.__emmiterDistance, int(height/2) )
+		detector_pos = [width + self.__detectorsDistance, int(height/2 - (self.__detNum*self.__detSize)/2 + np.floor(self.__detSize/2)) ]
 
 		#Debug
-		print self.__emmitter_pos, self.__detector_pos
+		#print emmitter_pos, detector_pos
 
 		view = np.zeros(self.__detNum)
 		for i in xrange(0, self.__detNum):
-			view[i] = self.__brasenham(self.__emmitter_pos, self.__detector_pos, rotated)
-			self.__detector_pos[1] += self.__detSize
+			#view[i] = self.__brasenham(emmitter_pos, detector_pos, rotated)
+			view[i] = self.__brasenham([emmitter_pos[0], detector_pos[1]], detector_pos, rotated)
+			detector_pos[1] += self.__detSize
 
 
 		return view
@@ -220,8 +223,7 @@ class CTsimRadon:
 
 		return s
 
-	def __iradon(self, radon_image, theta=None, output_size=None, fft_filter=False,
-			   filter="ramp"):
+	def __iradon(self, radon_image, theta=None, output_size=None, fft_filter=False, filter="ramp"):
 
 		if radon_image.ndim != 2:
 			raise ValueError('The input image must be 2-D')
