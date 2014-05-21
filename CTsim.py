@@ -20,8 +20,8 @@ class CTsimRadon:
 		self.__emmiterDistance = emmDist
 		self.__detNum = detNum
 		self.__detSize = detSize
-		#self.__image = imread(image_path, as_grey=True)
-		self.__imageRGB = imread(image_path)
+		self.__image = imread(image_path, as_grey=True)
+		#self.__imageRGB = imread(image_path)
 		
 		
 		#self.__image = rescale(self.__image, scale=1.0)#0.4)
@@ -30,13 +30,17 @@ class CTsimRadon:
 		self.__theta = np.linspace(0., angle, (angle+1)/step, endpoint=True)
 		plt.figure(figsize=(10, 10))
 		
-		#self.__image = self.__normalize_array(self.__image)
+		self.__image = self.__normalize_array(self.__image)
 
 	def run(self):
 		start = time.clock()
 		
+		'''
 		self.__image = self.__imageRGB[:,:,0]
 		self.__image = self.__normalize_array(self.__image)
+		
+		plt.imshow(self.__image)
+		plt.show()
 		
 		self.__sinogram = self.__acquisition() #tylko po to, zeby znac rozmiar
 		self.__sinogram = np.zeros((self.__sinogram.shape[0], self.__sinogram.shape[1], 3))
@@ -49,9 +53,10 @@ class CTsimRadon:
 		self.__image = self.__imageRGB[:,:,2]
 		self.__image = self.__normalize_array(self.__image)
 		self.__sinogram[:,:,2] = self.__acquisition()
+		'''
 		
-		
-		self.__showSinogram(show=True)
+		self.__acquisition()
+		self.__showSinogram()
 		self.__reconstruction()
 		self.__showReconstruction()
 		
@@ -62,8 +67,8 @@ class CTsimRadon:
 
 
 	def __acquisition(self):
-		#self.__sinogram = self.__radon(self.__image, theta=self.__theta)
-		return self.__radon(self.__image, theta=self.__theta)
+		self.__sinogram = self.__radon(self.__image, theta=self.__theta)
+		#return self.__radon(self.__image, theta=self.__theta)
 		
 
 	def __reconstruction(self):
@@ -76,8 +81,8 @@ class CTsimRadon:
 	def __showSinogram(self, show=False):
 		plt.subplot(221)
 		plt.title("Original")
-		#plt.imshow(self.__image, cmap=plt.cm.Greys_r)
-		plt.imshow(self.__image)
+		plt.imshow(self.__image, cmap=plt.cm.Greys_r)
+		#plt.imshow(self.__image)
 		
 
 		plt.subplot(222)
@@ -343,27 +348,28 @@ class CTsimRadon:
 		result = self.__normalize_array(rotated * np.pi / (2 * len(th)) )
 		
 		
-		if(self.__detSize != 1):
-			print("A %d %d") % (result.shape[0], result.shape[1])
-			
-			if(self.__mode==0):
-				scale = 1/self.__detSize * (self.__emmiterDistance + output_size+self.__detectorsDistance)/(self.__emmiterDistance + output_size/2)
-			else:
-				scale = 1/self.__detSize
-			
-			print("scale %f") % (scale)
-			
-			margin = (output_size-output_size*scale)/2
-			
+		#if(self.__detSize != 1):
+		print("A %d %d") % (result.shape[0], result.shape[1])
+		
+		if(self.__mode==0):
+			scale = 1/self.__detSize * (self.__emmiterDistance + output_size+self.__detectorsDistance)/(self.__emmiterDistance + output_size/2)
+		else:
+			scale = 1/self.__detSize
+		
+		print("scale %f") % (scale)
+		
+		margin = (output_size-output_size*scale)/2
+		
+		if(margin != 0):
 			result = result[margin:-margin , margin:-margin]
-					
-			print("B %d %d") % (result.shape[0], result.shape[1])
-			
-			result = rescale(result, (1/scale, 1/scale))
-			
-			print("C %d %d") % (result.shape[0], result.shape[1])
+				
+		print("B %d %d") % (result.shape[0], result.shape[1])
+		
+		result = rescale(result, (1/scale, 1/scale))
+		
+		print("C %d %d") % (result.shape[0], result.shape[1])
 
-			result = result[0:output_size, 0:output_size]
+		result = result[0:output_size, 0:output_size]
 		
 		
 		
