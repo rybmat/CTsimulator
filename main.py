@@ -158,10 +158,6 @@ class CTSimGui(QtGui.QMainWindow):
 		self.pix_label.setPixmap(QtGui.QPixmap(self.fname))
 		self.pix_label.adjustSize()
 
-		#self.scroll.setFixedHeight(self.rightFrame.height())
-		#self.scroll.setFixedWidth(self.rightFrame.width())
-
-
 
 	def comboSelect(self, text):
 		self.fft_filter_type = text
@@ -205,8 +201,7 @@ class CTSimGui(QtGui.QMainWindow):
 		
 		self.pix_label.setPixmap(QtGui.QPixmap.fromImage(nimage))	
 		self.pix_label.adjustSize()	
-		#self.scroll.setFixedHeight(self.rightFrame.height())
-		#self.scroll.setFixedWidth(self.rightFrame.width())
+
 
 	def fft_cbStateChanged(self, a):
 		self.fft_filter_cb.setEnabled(a)
