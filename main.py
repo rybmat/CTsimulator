@@ -15,6 +15,21 @@ def spinBox(parent, prefix, minSizeX, minSizeY, minVal, maxVal, defVal, posX, po
 
 	return sb
 
+class Frame(QtGui.QFrame):
+	def __init__(self, parent):
+		super(Frame, self).__init__(parent)
+		self.widget = ""
+
+	def add(self, widget):
+		self.widget = widget
+
+	def resizeEvent (self, resEv):
+		super(Frame, self).resizeEvent(resEv)
+		if self.widget:
+			self.widget.setFixedWidth(self.width())
+			self.widget.setFixedHeight(self.height())
+
+
 
 class CTSimGui(QtGui.QMainWindow):
 
@@ -34,9 +49,8 @@ class CTSimGui(QtGui.QMainWindow):
 		leftFrame.setFrameShape(QtGui.QFrame.StyledPanel)
 		leftFrame.setFixedWidth(300)
 		
-		self.rightFrame = QtGui.QFrame(self)
+		self.rightFrame = Frame(self)
 		self.rightFrame.setFrameShape(QtGui.QFrame.StyledPanel)
-		#self.rightFrame.resizeEvent.connect(self.rightFrameResize)
 
 
 		splitter1 = QtGui.QSplitter(QtCore.Qt.Horizontal)
@@ -98,7 +112,7 @@ class CTSimGui(QtGui.QMainWindow):
 		self.scroll.setWidgetResizable(True)
 		self.scroll.setFixedHeight(self.rightFrame.height())
 		self.scroll.setFixedWidth(self.rightFrame.width())
-		
+		self.rightFrame.add(self.scroll)
 		
 
 		self.statusBar()
@@ -144,13 +158,9 @@ class CTSimGui(QtGui.QMainWindow):
 		self.pix_label.setPixmap(QtGui.QPixmap(self.fname))
 		self.pix_label.adjustSize()
 
-		self.scroll.setFixedHeight(self.rightFrame.height())
-		self.scroll.setFixedWidth(self.rightFrame.width())
+		#self.scroll.setFixedHeight(self.rightFrame.height())
+		#self.scroll.setFixedWidth(self.rightFrame.width())
 
-
-	#def rightFrameResize(self):
-	#	self.scroll.setFixedHeight(self.rightFrame.height())
-	#	self.scroll.setFixedWidth(self.rightFrame.width())
 
 
 	def comboSelect(self, text):
@@ -195,8 +205,8 @@ class CTSimGui(QtGui.QMainWindow):
 		
 		self.pix_label.setPixmap(QtGui.QPixmap.fromImage(nimage))	
 		self.pix_label.adjustSize()	
-		self.scroll.setFixedHeight(self.rightFrame.height())
-		self.scroll.setFixedWidth(self.rightFrame.width())
+		#self.scroll.setFixedHeight(self.rightFrame.height())
+		#self.scroll.setFixedWidth(self.rightFrame.width())
 
 	def fft_cbStateChanged(self, a):
 		self.fft_filter_cb.setEnabled(a)
