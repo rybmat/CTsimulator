@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from skimage.io import imread
 from skimage import data_dir
-from skimage.transform import rescale, warp
+from skimage.transform import rescale, warp, resize
 
 from scipy.fftpack import fftshift, fft, ifft
 from skimage.transform._warps_cy import _warp_fast
@@ -32,7 +32,7 @@ class CTsimRadon:
 		
 		self.__image = self.__normalize_array(self.__image)
 
-	def run(self):
+	def run(self, show=True):
 		start = time.clock()
 		
 		'''
@@ -56,15 +56,37 @@ class CTsimRadon:
 		'''
 		
 		self.__acquisition()
-		self.__showSinogram()
 		self.__reconstruction()
-		self.__showReconstruction()
+		if(show):
+			self.__showSinogram()
+			self.__showReconstruction()
 		
 		end = time.clock()
 		print "time:", end-start
 		
-		plt.show()
-
+		if(show):
+			plt.show()
+	
+	
+	def getImage(self, downCut=0, upCut=1):
+		
+		reconstruction_cutted = self.__normalize_array(self.__reconstruction)
+		for x in range(reconstruction_cutted.shape[0]):
+			for y in range(reconstruction_cutted.shape[1]):
+				if(reconstruction_cutted[x,y]<0.44):
+					reconstruction_cutted[x,y]=0.44
+		reconstruction_cutted= self.__normalize_array(reconstruction_cutted)
+		
+		
+		result = np.zeros((self.__image.shape[0]*2, self.__image.shape[1]*2))
+		result[:self.__image.shape[0] , :self.__image.shape[1]] = self.__image
+		result[self.__image.shape[0]: , :self.__image.shape[1]] = reconstruction_cutted
+		result[:self.__image.shape[0] , self.__image.shape[1]:] = resize(self.__sinogram, (self.__image.shape[0], self.__image.shape[1]))
+		result[self.__image.shape[0]: , self.__image.shape[1]:] = reconstruction_cutted - self.__image
+		#plt.imshow(result, cmap=plt.cm.Greys_r)
+		#plt.show()
+		return result
+		
 
 	def __acquisition(self):
 		self.__sinogram = self.__radon(self.__image, theta=self.__theta)
@@ -73,9 +95,6 @@ class CTsimRadon:
 
 	def __reconstruction(self):
 		self.__reconstruction = self.__iradon(self.__sinogram, theta=self.__theta, output_size=self.__image.shape[0], fft_filter=self.__fft, filter=self.__fftFilter)
-		self.__error = self.__reconstruction - self.__image
-
-		print('FBP rms reconstruction error: %.3g' % np.sqrt(np.mean(self.__error**2)))
 
 
 	def __showSinogram(self, show=False):
@@ -97,6 +116,8 @@ class CTsimRadon:
 			plt.show()
 
 	def __showReconstruction(self, show=False):
+		self.__error = self.__reconstruction - self.__image
+		print('FBP rms reconstruction error: %.3g' % np.sqrt(np.mean(self.__error**2)))
 		
 		plt.subplot(223)
 		plt.title("Reconstruction\nFiltered back projection")
@@ -332,7 +353,7 @@ class CTsimRadon:
 
 		# reconstruct image by interpolation
 		for i in xrange(len(theta)):
-			t = xpr * np.cos(th[i]) - ypr * np.sin(th[i])
+			t = xpr * np.sin(th[i]) - ypr * np.cos(th[i])
 			
 			a = np.floor(t)
 			
@@ -382,7 +403,6 @@ class CTsimRadon:
 		print("C %d %d") % (result.shape[0], result.shape[1])
 
 		result = result[0:output_size, 0:output_size]
-		
-		
+				
 		
 		return result
