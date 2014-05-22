@@ -384,8 +384,10 @@ class CTsimRadon:
 		h, w = reconstructed.shape
 		dh, dw = h // 2, w // 2
 		
+		rotated = _warp_fast(reconstructed, np.linalg.inv(self.__build_rotation(90, dw, dh)))
+  		#rotated = warp(reconstructed, np.linalg.inv(self.__build_rotation(-90, dw, dh)))
 
-		result = self.__normalize_array(reconstructed * np.pi / (2 * len(th)) )
+		result = self.__normalize_array(rotated * np.pi / (2 * len(th)) )
 		
 		
 		#if(self.__detSize != 1):
