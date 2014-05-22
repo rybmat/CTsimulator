@@ -10,6 +10,8 @@ from scipy.fftpack import fftshift, fft, ifft
 from skimage.transform._warps_cy import _warp_fast
 import time
 
+import sys
+
 class CTsimRadon:
 
 	def __init__(self, image_path, angle, step, detNum, detSize, emmDist=500, detDist=500, fft=False, filter="ramp", mode=0):
@@ -79,13 +81,18 @@ class CTsimRadon:
 		
 		
 		result = np.zeros((self.__image.shape[0]*2, self.__image.shape[1]*2))
-		result[:self.__image.shape[0] , :self.__image.shape[1]] = self.__image
+		result[:self.__image.shape[0] , :self.__image.shape[1]] = self.__normalize_array(self.__image)
 		result[self.__image.shape[0]: , :self.__image.shape[1]] = reconstruction_cutted
-		result[:self.__image.shape[0] , self.__image.shape[1]:] = resize(self.__sinogram, (self.__image.shape[0], self.__image.shape[1]))
-		result[self.__image.shape[0]: , self.__image.shape[1]:] = reconstruction_cutted - self.__image
-		#plt.imshow(result, cmap=plt.cm.Greys_r)
+		result[:self.__image.shape[0] , self.__image.shape[1]:] = resize(self.__normalize_array(self.__sinogram), (self.__image.shape[0], self.__image.shape[1]))
+		result[self.__image.shape[0]: , self.__image.shape[1]:] = self.__normalize_array(reconstruction_cutted - self.__image)
+		
+		resultRGB = np.zeros((result.shape[0], result.shape[1], 3))
+		resultRGB[:,:,0] = resultRGB[:,:,1] = resultRGB[:,:,2] = result
+		resultRB = resultRGB*255
+		#plt.imshow(resultRGB)#, cmap=plt.cm.Greys_r)
 		#plt.show()
-		return result
+		
+		return resultRGB
 		
 
 	def __acquisition(self):
