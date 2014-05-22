@@ -332,7 +332,7 @@ class CTsimRadon:
 
 		# reconstruct image by interpolation
 		for i in xrange(len(theta)):
-			t = xpr * np.cos(th[i]) - ypr * np.sin(th[i])
+			t = xpr * np.sin(th[i]) - ypr * np.cos(th[i])
 			
 			a = np.floor(t)
 			
@@ -356,8 +356,10 @@ class CTsimRadon:
 		h, w = reconstructed.shape
 		dh, dw = h // 2, w // 2
 		
+		rotated = _warp_fast(reconstructed, np.linalg.inv(self.__build_rotation(90, dw, dh)))
+  		#rotated = warp(reconstructed, np.linalg.inv(self.__build_rotation(-90, dw, dh)))
 
-		result = self.__normalize_array(reconstructed * np.pi / (2 * len(th)) )
+		result = self.__normalize_array(rotated * np.pi / (2 * len(th)) )
 		
 		
 		#if(self.__detSize != 1):
