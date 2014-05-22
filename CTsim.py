@@ -328,24 +328,36 @@ class CTsimRadon:
 		xpr = X - int(output_size2) // 2
 		ypr = Y - int(output_size2) // 2
 
+	 
+
 		# reconstruct image by interpolation
 		for i in xrange(len(theta)):
-			t = xpr * np.sin(th[i]) - ypr * np.cos(th[i])
+			t = xpr * np.cos(th[i]) - ypr * np.sin(th[i])
+			
 			a = np.floor(t)
+			
 			b = mid_index + a
 			b0 = ((((b + 1 > 0) & (b + 1 < n)) * (b + 1)) - 1).astype(np.int)
 			b1 = ((((b > 0) & (b < n)) * b) - 1).astype(np.int)
 			reconstructed += (t - a) * radon_filtered[b0, i] + (a - t + 1) * radon_filtered[b1, i]
 
+			#debug
+			#print b0
+			#print i
+			#print b1
+			#plt.subplot(221)
+			#plt.imshow(reconstructed, cmap=plt.cm.Greys_r)
+			#plt.subplot(222)
+			#plt.imshow((t - a) * radon_filtered[b0, i], cmap=plt.cm.Greys_r)
+			#plt.subplot(223)
+			#plt.imshow((a - t + 1) * radon_filtered[b1, i], cmap=plt.cm.Greys_r)
+			#plt.show()
 
 		h, w = reconstructed.shape
 		dh, dw = h // 2, w // 2
-
-		rotated = _warp_fast(reconstructed, np.linalg.inv(self.__build_rotation(90, dw, dh)))
-		#rotated = warp(reconstructed, np.linalg.inv(self.__build_rotation(-90, dw, dh)))
 		
 
-		result = self.__normalize_array(rotated * np.pi / (2 * len(th)) )
+		result = self.__normalize_array(reconstructed * np.pi / (2 * len(th)) )
 		
 		
 		#if(self.__detSize != 1):
