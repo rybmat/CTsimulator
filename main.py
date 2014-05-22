@@ -2,6 +2,8 @@ import CTsim
 from skimage import data_dir
 import sys
 from PyQt4 import QtGui, QtCore
+import numpy as np
+from PIL import Image
 
 def spinBox(parent, prefix, minSizeX, minSizeY, minVal, maxVal, defVal, posX, posY):
 	sb = QtGui.QSpinBox(parent)
@@ -50,7 +52,7 @@ class CTSimGui(QtGui.QMainWindow):
 		self.rot_angle_sb = spinBox(leftFrame, "Rotation Angle [deg]:    ", 200, 10, 1, 360, 180, 5,30)
 
 		#rotation step
-		self.rot_step_sb = spinBox(leftFrame, "Rotation Step [deg]:      ", 200, 10, 1, 90, 1, 5,65)
+		self.rot_step_sb = spinBox(leftFrame, "Rotation Step [deg]:      ", 200, 10, 1, 90, 30, 5,65)
 
 		#detectors number
 		self.det_num_sb = spinBox(leftFrame, "Detectors Number:       ", 200, 10, 1, 999999, 500, 5, 100)
@@ -157,8 +159,8 @@ class CTSimGui(QtGui.QMainWindow):
 
 
 		if self.fname == "":
-			file_path =  data_dir + "/phantom.png"
-			#file_path =  "testR.png"
+			#file_path =  data_dir + "/phantom.png"
+			file_path =  "RGB.png"
 		else:
 			file_path = self.fname
 
@@ -166,8 +168,47 @@ class CTSimGui(QtGui.QMainWindow):
 		a.run(show = False)
 		img = a.getImage()
 
-		qimg = QtGui.QImage(img, img.shape[1], img.shape[0], QtGui.QImage.Format_Indexed8)
-		self.pix_label.setPixmap(QtGui.QPixmap.fromImage(qimg))	
+		'''
+		img2 = np.zeros((img.shape[0], img.shape[1]*3), 'uint8')
+		for i in range(img.shape[1]):
+			img2[:, 3*i+0] = img[:, i, 0]
+			img2[:, 3*i+1] = img[:, i, 1]
+			img2[:, 3*i+2] = img[:, i, 2]
+		'''
+		#PILimg = Image.fromarray(img2)
+		#qimg = QtGui.QImage(ImageQt.ImageQt(PILimg))
+		
+		#bgra = img
+		#result = QtGui.QImage(bgra.data, bgra.shape[0], bgra.shape[1], QtGui.QImage.Format_RGB32)
+		#result.ndarray = bgra
+		
+		
+		w=77
+		h=77
+		total = np.zeros((h,w,4),np.uint8)
+		total[20,40,2] = 255
+		total[20,45,1] = 255
+		
+		print "MAIN"
+		print img[50,50,1]
+		
+		for x in range(77):
+			for y in range(77):
+				total[x,y,0] = np.uint8(img[x,y,0])
+				total[x,y,1] = np.uint8(img[x,y,1])
+				total[x,y,2] = np.uint8(img[x,y,2])
+				
+		total[20,40,2] = 255
+		total[20,45,1] = 255
+
+		#code to fill total with image data
+
+		nimage = QtGui.QImage(total.data,w,h,QtGui.QImage.Format_RGB32)
+		nimage.ndarray = total
+		
+		
+		#qimg = QtGui.QImage(img, img.shape[1], img.shape[0], QtGui.QImage.Format_RGB16)
+		self.pix_label.setPixmap(QtGui.QPixmap.fromImage(nimage))	
 		self.pix_label.adjustSize()	
 
 	def fft_cbStateChanged(self, a):

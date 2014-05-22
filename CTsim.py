@@ -86,12 +86,20 @@ class CTsimRadon:
 		result[:self.__image.shape[0] , self.__image.shape[1]:] = resize(self.__normalize_array(self.__sinogram), (self.__image.shape[0], self.__image.shape[1]))
 		result[self.__image.shape[0]: , self.__image.shape[1]:] = self.__normalize_array(reconstruction_cutted - self.__image)
 		
-		resultRGB = np.zeros((result.shape[0], result.shape[1], 3))
+		result = self.__normalize_array(self.__image)
+		
+		resultRGB = np.ones((result.shape[0], result.shape[1], 3))
 		resultRGB[:,:,0] = resultRGB[:,:,1] = resultRGB[:,:,2] = result
-		resultRB = resultRGB*255
+		resultRGB = resultRGB*255
 		#plt.imshow(resultRGB)#, cmap=plt.cm.Greys_r)
 		#plt.show()
 		
+		print resultRGB.shape[0]
+		print resultRGB.shape[1]
+		print resultRGB.shape[2]
+		
+		print "CTSIM"
+		print resultRGB[50,50,1]
 		return resultRGB
 		
 
