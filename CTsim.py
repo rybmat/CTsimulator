@@ -92,16 +92,16 @@ class CTsimRadon:
 		#resultRGB[:,:,2] = result
 		#resultRGB[:,:,:] = resultRGB[:,:,:]*255
 		result = result*255
-		plt.imshow(result)#, cmap=plt.cm.Greys_r)
-		plt.show()
+		#plt.imshow(result)#, cmap=plt.cm.Greys_r)
+		#plt.show()
 		
-		print resultRGB.shape[0]
-		print resultRGB.shape[1]
-		print resultRGB.shape[2]
+		#print resultRGB.shape[0]
+		#print resultRGB.shape[1]
+		#print resultRGB.shape[2]
 		
-		print "CTSIM"
-		print resultRGB[50,50,1]
-		return resultRGB
+		result = np.require(result, np.uint8, 'C')
+		
+		return result
 		
 
 	def __acquisition(self):

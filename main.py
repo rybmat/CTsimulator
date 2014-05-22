@@ -168,8 +168,10 @@ class CTSimGui(QtGui.QMainWindow):
 		a.run(show = False)
 		img = a.getImage()
 		
-		nimage = QtGui.QImage(img.data,img.shape[0],img.shape[1],QtGui.QImage.Format_ARGB32)
+		nimage = QtGui.QImage(img.data,img.shape[0],img.shape[1],QtGui.QImage.Format_Indexed8)
 		nimage.ndarray = img
+		for i in range(256):
+			nimage.setColor(i, QtGui.QColor(i,i,i).rgb())
 
 		
 		#qimg = QtGui.QImage(img, img.shape[1], img.shape[0], QtGui.QImage.Format_RGB16)
