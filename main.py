@@ -100,9 +100,23 @@ class CTSimGui(QtGui.QMainWindow):
 		self.fft_filter_cb.addItem("hann")
 		self.fft_filter_cb.activated[str].connect(self.comboSelect)
 
-		#rgb check box
+		#generation check box
 		self.raysMode_cb = QtGui.QCheckBox("1 generation CT", leftFrame)
 		self.raysMode_cb.move(5, 300)
+
+		#Brightness slider
+		self.brightness_lbl = QtGui.QLabel(leftFrame)
+		self.brightness_lbl.move(10,355)
+		self.brightness_lbl.setText("Reconstructed image brghtness")
+		self.brightness_lbl.adjustSize()
+		self.brightness_lbl.setEnabled(False)
+		self.brightness_sl = QtGui.QSlider(QtCore.Qt.Horizontal, leftFrame)
+		self.brightness_sl.setGeometry(10, 370, 200, 30)
+		self.brightness_sl.valueChanged[int].connect(self.onChangeSlider)
+		self.brightness_sl.setEnabled(False)
+		self.brightness_sl.setValue(100)
+
+		
 
 		#image label
 		self.pix_label = QtGui.QLabel()
@@ -158,6 +172,9 @@ class CTSimGui(QtGui.QMainWindow):
 		self.pix_label.setPixmap(QtGui.QPixmap(self.fname))
 		self.pix_label.adjustSize()
 
+	def onChangeSlider(self):
+		print (self.brightness_sl.value() + 1) / 100.0
+
 
 	def comboSelect(self, text):
 		self.fft_filter_type = text
@@ -201,6 +218,8 @@ class CTSimGui(QtGui.QMainWindow):
 		
 		self.pix_label.setPixmap(QtGui.QPixmap.fromImage(nimage))	
 		self.pix_label.adjustSize()	
+		self.brightness_sl.setEnabled(True)
+		self.brightness_lbl.setEnabled(True)
 
 
 	def fft_cbStateChanged(self, a):
