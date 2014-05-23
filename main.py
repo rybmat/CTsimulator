@@ -39,6 +39,7 @@ class CTSimGui(QtGui.QMainWindow):
 		
 		self.fname = ""
 		self.fft_filter_type = "ramp"
+		self.firstGen = False
 
 		self.initUI()
 		
@@ -65,34 +66,42 @@ class CTSimGui(QtGui.QMainWindow):
 		#label with fname
 		self.fname_label = QtGui.QLabel("Selected File: ", leftFrame)
 		self.fname_label.setMinimumSize(300,10)
-		self.fname_label.move(10,5)
+		self.fname_label.move(5,500)
+
+		#generation select
+		self.generation_sel = QtGui.QComboBox(leftFrame)
+		self.generation_sel.move(5, 20)
+		self.generation_sel.addItem("III generation CT")
+		self.generation_sel.addItem("I generation CT")
+		self.generation_sel.activated[str].connect(self.generationSelect)
+
 
 		#rotation angle
-		self.rot_angle_sb = spinBox(leftFrame, "Rotation Angle [deg]:    ", 200, 10, 1, 360, 180, 5,30)
+		self.rot_angle_sb = spinBox(leftFrame, "Rotation Angle [deg]:    ", 200, 10, 1, 360, 180, 5,65)
 
 		#rotation step
-		self.rot_step_sb = spinBox(leftFrame, "Rotation Step [deg]:      ", 200, 10, 1, 90, 30, 5,65)
+		self.rot_step_sb = spinBox(leftFrame, "Rotation Step [deg]:      ", 200, 10, 1, 90, 30, 5,100)
 
 		#detectors number
-		self.det_num_sb = spinBox(leftFrame, "Detectors Number:       ", 200, 10, 1, 999999, 500, 5, 100)
+		self.det_num_sb = spinBox(leftFrame, "Detectors Number:       ", 200, 10, 1, 999999, 500, 5, 135)
 
 		#detector size
-		self.det_size_sb = spinBox(leftFrame, "Detector Size [px]:        ", 200, 10, 1, 100, 2, 5, 135)
+		self.det_size_sb = spinBox(leftFrame, "Detector Size [px]:        ", 200, 10, 1, 100, 2, 5, 170)
 
 		#emmiter distance
-		self.emm_dist_sb = spinBox(leftFrame, "Emmiter Distance [px]: ", 200, 10, 1, 999999, 500, 5, 170)
+		self.emm_dist_sb = spinBox(leftFrame, "Emmiter Distance [px]: ", 200, 10, 1, 999999, 500, 5, 205)
 
 		#detectors distance
-		self.det_dist_sb = spinBox(leftFrame, "Detector Distance [px]: ", 200, 10, 1, 999999, 500, 5, 205)
+		self.det_dist_sb = spinBox(leftFrame, "Detector Distance [px]: ", 200, 10, 1, 999999, 500, 5, 240)
 
 		#fft/normal filter
 		self.fft_cb = QtGui.QCheckBox("Use FFT filter", leftFrame)
-		self.fft_cb.move(5, 240)
+		self.fft_cb.move(5, 280)
 		self.fft_cb.stateChanged.connect(self.fft_cbStateChanged)
 
 		#choose fft filter
 		self.fft_filter_cb = QtGui.QComboBox(leftFrame)
-		self.fft_filter_cb.move(10,265)
+		self.fft_filter_cb.move(10,300)
 		self.fft_filter_cb.setEnabled(False)
 		self.fft_filter_cb.addItem("ramp")
 		self.fft_filter_cb.addItem("shepp-logan")
@@ -101,29 +110,25 @@ class CTSimGui(QtGui.QMainWindow):
 		self.fft_filter_cb.addItem("hann")
 		self.fft_filter_cb.activated[str].connect(self.comboSelect)
 
-		#generation check box
-		self.raysMode_cb = QtGui.QCheckBox("1 generation CT", leftFrame)
-		self.raysMode_cb.move(5, 300)
-
 		#Brightness slider
 		self.upCut_lbl = QtGui.QLabel(leftFrame)
-		self.upCut_lbl.move(10,355)
+		self.upCut_lbl.move(10,360)
 		self.upCut_lbl.setText("Reconstructed image up cut")
 		self.upCut_lbl.adjustSize()
 		self.upCut_lbl.setEnabled(False)
 		self.upCut_sl = QtGui.QSlider(QtCore.Qt.Horizontal, leftFrame)
-		self.upCut_sl.setGeometry(10, 370, 200, 30)
+		self.upCut_sl.setGeometry(10, 375, 200, 30)
 		self.upCut_sl.valueChanged[int].connect(self.onChangeSlider)
 		self.upCut_sl.setEnabled(False)
 		self.upCut_sl.setValue(0)
 
 		self.downCut_lbl = QtGui.QLabel(leftFrame)
-		self.downCut_lbl.move(10,395)
+		self.downCut_lbl.move(10,410)
 		self.downCut_lbl.setText("Reconstructed image down cut")
 		self.downCut_lbl.adjustSize()
 		self.downCut_lbl.setEnabled(False)
 		self.downCut_sl = QtGui.QSlider(QtCore.Qt.Horizontal, leftFrame)
-		self.downCut_sl.setGeometry(10, 410, 200, 30)
+		self.downCut_sl.setGeometry(10, 425, 200, 30)
 		self.downCut_sl.valueChanged[int].connect(self.onChangeSlider)
 		self.downCut_sl.setEnabled(False)
 		self.downCut_sl.setValue(100)
@@ -195,6 +200,17 @@ class CTSimGui(QtGui.QMainWindow):
 
 	def comboSelect(self, text):
 		self.fft_filter_type = text
+
+	def generationSelect(self, text):
+		if text == "III generation CT":
+			self.firstGen = False
+		else:
+			self.firstGen = True
+
+		self.det_num_sb.setVisible(not self.firstGen)
+		self.det_size_sb.setVisible(not self.firstGen)
+		self.emm_dist_sb.setVisible(not self.firstGen)
+		self.det_dist_sb.setVisible(not self.firstGen)
 		 
 
 	def runAlgorithm(self):
@@ -212,7 +228,7 @@ class CTSimGui(QtGui.QMainWindow):
 		print "detectors distance: ", self.det_dist_sb.value()
 		print "use fft filter: ", self.fft_cb.isChecked()
 		print "fft filter type: ", self.fft_filter_type
-		print "Rays Mode: ", self.raysMode_cb.isChecked()
+		print "Rays Mode: ", self.firstGen
 		print "============"
 
 
@@ -221,7 +237,7 @@ class CTSimGui(QtGui.QMainWindow):
 		else:
 			file_path = self.fname
 
-		self.a = CTsim.CTsimRadon(image_path=str(file_path), angle=self.rot_angle_sb.value(), step=self.rot_step_sb.value(), detNum=self.det_num_sb.value(), detSize=self.det_size_sb.value(), emmDist=self.emm_dist_sb.value(), detDist=self.det_dist_sb.value(), fft=self.fft_cb.isChecked(), filter=self.fft_filter_type, firstGen=self.raysMode_cb.isChecked())
+		self.a = CTsim.CTsimRadon(image_path=str(file_path), angle=self.rot_angle_sb.value(), step=self.rot_step_sb.value(), detNum=self.det_num_sb.value(), detSize=self.det_size_sb.value(), emmDist=self.emm_dist_sb.value(), detDist=self.det_dist_sb.value(), fft=self.fft_cb.isChecked(), filter=self.fft_filter_type, firstGen=self.firstGen)
 		self.a.run(show = False)
 
 		
