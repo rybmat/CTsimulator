@@ -14,10 +14,10 @@ import sys
 
 class CTsimRadon:
 
-	def __init__(self, image_path, angle, step, detNum, detSize, emmDist=500, detDist=500, fft=False, filter="ramp", mode=0):
+	def __init__(self, image_path, angle, step, detNum, detSize, emmDist=500, detDist=500, fft=False, filter="ramp", firstGen=0):
 		self.__fft = fft
 		self.__fftFilter = filter
-		self.__mode = mode
+		self.__firstGen = firstGen
 		self.__detectorsDistance = detDist
 		self.__emmiterDistance = emmDist
 		self.__detNum = detNum
@@ -127,7 +127,10 @@ class CTsimRadon:
 		#plt.imshow(padded_image, cmap=plt.cm.Greys_r)
 		#plt.show()
 		
-		sinogram = np.zeros((self.__detNum, len(theta)))
+		if self.__firstGen:
+			sinogram = np.zeros((padded_image.shape[0], len(theta)))
+		else:
+			sinogram = np.zeros((self.__detNum, len(theta)))
 
 		h, w = padded_image.shape
 		dh, dw = h // 2, w // 2
@@ -138,7 +141,10 @@ class CTsimRadon:
 			rotated = _warp_fast(padded_image, np.linalg.inv(self.__build_rotation(-theta[i], dw, dh)), mode="wrap")
 			#rotated = warp(padded_image, np.linalg.inv(self.__build_rotation(-theta[i], dw, dh)))		
 
-			sinogram[:, i] = self.__radon_view(rotated)
+			if not self.__firstGen:
+				sinogram[:, i] = self.__radon_view(rotated)
+			else:
+				sinogram[:, i] = rotated.sum(0)[::-1]
 
 		return sinogram
 
@@ -171,10 +177,10 @@ class CTsimRadon:
 
 		view = np.zeros(self.__detNum)
 		for i in xrange(0, self.__detNum):
-			if(self.__mode == 0):
-				view[i] = self.__brasenham(emmitter_pos, detector_pos, rotated)
-			else:
-				view[i] = self.__brasenham([emmitter_pos[0], detector_pos[1]], detector_pos, rotated)
+			#if(self.__firstGen == 0):
+			view[i] = self.__brasenham(emmitter_pos, detector_pos, rotated)
+			#else:
+			#	view[i] = self.__brasenham([emmitter_pos[0], detector_pos[1]], detector_pos, rotated)
 			detector_pos[1] += self.__detSize
 
 
@@ -344,16 +350,19 @@ class CTsimRadon:
 		h, w = reconstructed.shape
 		dh, dw = h // 2, w // 2
 		
-		rotated = _warp_fast(reconstructed, np.linalg.inv(self.__build_rotation(90, dw, dh)))
-  		#rotated = warp(reconstructed, np.linalg.inv(self.__build_rotation(-90, dw, dh)))
+		if not self.__firstGen:
+			rotated = _warp_fast(reconstructed, np.linalg.inv(self.__build_rotation(90, dw, dh)))
+  			#rotated = warp(reconstructed, np.linalg.inv(self.__build_rotation(-90, dw, dh)))
+  			result = self.normalize_array(rotated * np.pi / (2 * len(th)) )
+  		else:
+  			result = self.normalize_array(reconstructed * np.pi / (2 * len(th)) )
+			return result
+			
 
-		result = self.normalize_array(rotated * np.pi / (2 * len(th)) )
-		
-		
 		#if(self.__detSize != 1):
 		print("A %d %d") % (result.shape[0], result.shape[1])
 		
-		if(self.__mode==0):
+		if(self.__firstGen==0):
 			scale = 1/self.__detSize * (self.__emmiterDistance + output_size+self.__detectorsDistance)/(self.__emmiterDistance + output_size/2)
 		else:
 			scale = 1/self.__detSize

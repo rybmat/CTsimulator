@@ -115,7 +115,7 @@ class CTSimGui(QtGui.QMainWindow):
 		self.upCut_sl.setGeometry(10, 370, 200, 30)
 		self.upCut_sl.valueChanged[int].connect(self.onChangeSlider)
 		self.upCut_sl.setEnabled(False)
-		self.upCut_sl.setValue(100)
+		self.upCut_sl.setValue(0)
 
 		self.downCut_lbl = QtGui.QLabel(leftFrame)
 		self.downCut_lbl.move(10,395)
@@ -126,7 +126,7 @@ class CTSimGui(QtGui.QMainWindow):
 		self.downCut_sl.setGeometry(10, 410, 200, 30)
 		self.downCut_sl.valueChanged[int].connect(self.onChangeSlider)
 		self.downCut_sl.setEnabled(False)
-		self.downCut_sl.setValue(0)
+		self.downCut_sl.setValue(100)
 
 
 		
@@ -221,7 +221,7 @@ class CTSimGui(QtGui.QMainWindow):
 		else:
 			file_path = self.fname
 
-		self.a = CTsim.CTsimRadon(image_path=str(file_path), angle=self.rot_angle_sb.value(), step=self.rot_step_sb.value(), detNum=self.det_num_sb.value(), detSize=self.det_size_sb.value(), emmDist=self.emm_dist_sb.value(), detDist=self.det_dist_sb.value(), fft=self.fft_cb.isChecked(), filter=self.fft_filter_type, mode=self.raysMode_cb.isChecked())
+		self.a = CTsim.CTsimRadon(image_path=str(file_path), angle=self.rot_angle_sb.value(), step=self.rot_step_sb.value(), detNum=self.det_num_sb.value(), detSize=self.det_size_sb.value(), emmDist=self.emm_dist_sb.value(), detDist=self.det_dist_sb.value(), fft=self.fft_cb.isChecked(), filter=self.fft_filter_type, firstGen=self.raysMode_cb.isChecked())
 		self.a.run(show = False)
 
 		
