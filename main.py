@@ -1,5 +1,6 @@
 import CTsim
 from skimage import data_dir
+from skimage.transform import resize
 import sys
 from PyQt4 import QtGui, QtCore
 import numpy as np
@@ -105,16 +106,28 @@ class CTSimGui(QtGui.QMainWindow):
 		self.raysMode_cb.move(5, 300)
 
 		#Brightness slider
-		self.brightness_lbl = QtGui.QLabel(leftFrame)
-		self.brightness_lbl.move(10,355)
-		self.brightness_lbl.setText("Reconstructed image brghtness")
-		self.brightness_lbl.adjustSize()
-		self.brightness_lbl.setEnabled(False)
-		self.brightness_sl = QtGui.QSlider(QtCore.Qt.Horizontal, leftFrame)
-		self.brightness_sl.setGeometry(10, 370, 200, 30)
-		self.brightness_sl.valueChanged[int].connect(self.onChangeSlider)
-		self.brightness_sl.setEnabled(False)
-		self.brightness_sl.setValue(100)
+		self.upCut_lbl = QtGui.QLabel(leftFrame)
+		self.upCut_lbl.move(10,355)
+		self.upCut_lbl.setText("Reconstructed image up cut")
+		self.upCut_lbl.adjustSize()
+		self.upCut_lbl.setEnabled(False)
+		self.upCut_sl = QtGui.QSlider(QtCore.Qt.Horizontal, leftFrame)
+		self.upCut_sl.setGeometry(10, 370, 200, 30)
+		self.upCut_sl.valueChanged[int].connect(self.onChangeSlider)
+		self.upCut_sl.setEnabled(False)
+		self.upCut_sl.setValue(100)
+
+		self.downCut_lbl = QtGui.QLabel(leftFrame)
+		self.downCut_lbl.move(10,395)
+		self.downCut_lbl.setText("Reconstructed image down cut")
+		self.downCut_lbl.adjustSize()
+		self.downCut_lbl.setEnabled(False)
+		self.downCut_sl = QtGui.QSlider(QtCore.Qt.Horizontal, leftFrame)
+		self.downCut_sl.setGeometry(10, 410, 200, 30)
+		self.downCut_sl.valueChanged[int].connect(self.onChangeSlider)
+		self.downCut_sl.setEnabled(False)
+		self.downCut_sl.setValue(0)
+
 
 		
 
@@ -173,7 +186,11 @@ class CTSimGui(QtGui.QMainWindow):
 		self.pix_label.adjustSize()
 
 	def onChangeSlider(self):
-		print (self.brightness_sl.value() + 1) / 100.0
+		try:
+			self.pix_label.setPixmap(QtGui.QPixmap.fromImage(self.prepareImage((self.upCut_sl.value() + 1) / 100.0, (self.downCut_sl.value() + 1) / 100.0)))	
+			self.pix_label.adjustSize()
+		except:
+			pass
 
 
 	def comboSelect(self, text):
@@ -201,29 +218,55 @@ class CTSimGui(QtGui.QMainWindow):
 
 		if self.fname == "":
 			file_path =  data_dir + "/phantom.png"
-			#file_path =  "RGB.png"
 		else:
 			file_path = self.fname
 
-		a = CTsim.CTsimRadon(image_path=str(file_path), angle=self.rot_angle_sb.value(), step=self.rot_step_sb.value(), detNum=self.det_num_sb.value(), detSize=self.det_size_sb.value(), emmDist=self.emm_dist_sb.value(), detDist=self.det_dist_sb.value(), fft=self.fft_cb.isChecked(), filter=self.fft_filter_type, mode=self.raysMode_cb.isChecked())
-		a.run(show = False)
-		img = a.getImage()
-		
-		nimage = QtGui.QImage(img.data,img.shape[0],img.shape[1],QtGui.QImage.Format_Indexed8)
-		nimage.ndarray = img
-		for i in range(256):
-			nimage.setColor(i, QtGui.QColor(i,i,i).rgb())
+		self.a = CTsim.CTsimRadon(image_path=str(file_path), angle=self.rot_angle_sb.value(), step=self.rot_step_sb.value(), detNum=self.det_num_sb.value(), detSize=self.det_size_sb.value(), emmDist=self.emm_dist_sb.value(), detDist=self.det_dist_sb.value(), fft=self.fft_cb.isChecked(), filter=self.fft_filter_type, mode=self.raysMode_cb.isChecked())
+		self.a.run(show = False)
 
 		
-		
-		self.pix_label.setPixmap(QtGui.QPixmap.fromImage(nimage))	
+		self.pix_label.setPixmap(QtGui.QPixmap.fromImage(self.prepareImage((self.upCut_sl.value() + 1) / 100.0, (self.downCut_sl.value() + 1) / 100.0)))	
 		self.pix_label.adjustSize()	
-		self.brightness_sl.setEnabled(True)
-		self.brightness_lbl.setEnabled(True)
+		self.upCut_sl.setEnabled(True)
+		self.upCut_lbl.setEnabled(True)
+		self.downCut_sl.setEnabled(True)
+		self.downCut_lbl.setEnabled(True)
 
 
 	def fft_cbStateChanged(self, a):
 		self.fft_filter_cb.setEnabled(a)
+
+	def prepareImage(self, upCut=1.0, downCut=0.0):
+		image = self.a.getImage()
+		sinogram = self.a.getSinogram()
+		reconstruction = self.a.getReconstruction()
+
+		reconstruction_cutted = reconstruction
+		for x in range(reconstruction_cutted.shape[0]):
+			for y in range(reconstruction_cutted.shape[1]):
+				if(reconstruction_cutted[x,y] < upCut):
+					reconstruction_cutted[x,y] = upCut
+				if(reconstruction_cutted[x,y] > downCut):
+					reconstruction_cutted[x,y] = downCut
+		reconstruction_cutted = self.a.normalize_array(reconstruction_cutted)
+		
+		
+		result = np.zeros((image.shape[0]*2, image.shape[1]*2))
+		result[:image.shape[0] , :image.shape[1]] = image
+		result[image.shape[0]: , :image.shape[1]] = reconstruction_cutted
+		result[:image.shape[0] , image.shape[1]:] = resize(sinogram, (image.shape[0], image.shape[1]))
+		result[image.shape[0]: , image.shape[1]:] = self.a.normalize_array(reconstruction_cutted - image)
+		
+		result = result*255
+		result = np.require(result, np.uint8, 'C')
+		
+
+		nimage = QtGui.QImage(result.data, result.shape[0], result.shape[1], QtGui.QImage.Format_Indexed8)
+		nimage.ndarray = result
+		for i in range(256):
+			nimage.setColor(i, QtGui.QColor(i,i,i).rgb())
+
+		return nimage
 
 
 def main():

@@ -23,39 +23,15 @@ class CTsimRadon:
 		self.__detNum = detNum
 		self.__detSize = detSize
 		self.__image = imread(image_path, as_grey=True)
-		#self.__imageRGB = imread(image_path)
 		
-		
-		#self.__image = rescale(self.__image, scale=1.0)#0.4)
 		self.__angle = angle
-		#self.__theta = np.linspace(0., angle, max(self.__image.shape), endpoint=True)
 		self.__theta = np.linspace(0., angle, (angle+1)/step, endpoint=True)
 		plt.figure(figsize=(10, 10))
 		
-		self.__image = self.__normalize_array(self.__image)
+		self.__image = self.normalize_array(self.__image)
 
 	def run(self, show=True):
 		start = time.clock()
-		
-		'''
-		self.__image = self.__imageRGB[:,:,0]
-		self.__image = self.__normalize_array(self.__image)
-		
-		plt.imshow(self.__image)
-		plt.show()
-		
-		self.__sinogram = self.__acquisition() #tylko po to, zeby znac rozmiar
-		self.__sinogram = np.zeros((self.__sinogram.shape[0], self.__sinogram.shape[1], 3))
-		self.__sinogram[:,:,0] = self.__acquisition()
-		
-		self.__image = self.__imageRGB[:,:,1]
-		self.__image = self.__normalize_array(self.__image)
-		self.__sinogram[:,:,1] = self.__acquisition()
-		
-		self.__image = self.__imageRGB[:,:,2]
-		self.__image = self.__normalize_array(self.__image)
-		self.__sinogram[:,:,2] = self.__acquisition()
-		'''
 		
 		self.__acquisition()
 		self.__reconstruction()
@@ -69,39 +45,14 @@ class CTsimRadon:
 		if(show):
 			plt.show()
 	
-	
-	def getImage(self, downCut=0, upCut=1):
+	def getReconstruction(self):
+		return self.normalize_array(self.__reconstruction)
 
-		reconstruction_cutted = self.__normalize_array(self.__reconstruction)
-		for x in range(reconstruction_cutted.shape[0]):
-			for y in range(reconstruction_cutted.shape[1]):
-				if(reconstruction_cutted[x,y]<0.44):
-					reconstruction_cutted[x,y]=0.44
-		reconstruction_cutted= self.__normalize_array(reconstruction_cutted)
-		
-		
-		result = np.zeros((self.__image.shape[0]*2, self.__image.shape[1]*2))
-		result[:self.__image.shape[0] , :self.__image.shape[1]] = self.__normalize_array(self.__image)
-		result[self.__image.shape[0]: , :self.__image.shape[1]] = reconstruction_cutted
-		result[:self.__image.shape[0] , self.__image.shape[1]:] = resize(self.__normalize_array(self.__sinogram), (self.__image.shape[0], self.__image.shape[1]))
-		result[self.__image.shape[0]: , self.__image.shape[1]:] = self.__normalize_array(reconstruction_cutted - self.__image)
-		
-		#resultRGB = np.ones((result.shape[0], result.shape[1], 3))
-		#resultRGB = np.ones((result.shape[0],result.shape[1],4),np.uint8)
-		#resultRGB[:,:,0] = resultRGB[:,:,1] = 
-		#resultRGB[:,:,2] = result
-		#resultRGB[:,:,:] = resultRGB[:,:,:]*255
-		result = result*255
-		#plt.imshow(result)#, cmap=plt.cm.Greys_r)
-		#plt.show()
-		
-		#print resultRGB.shape[0]
-		#print resultRGB.shape[1]
-		#print resultRGB.shape[2]
-		
-		result = np.require(result, np.uint8, 'C')
-		
-		return result
+	def getSinogram(self):
+		return self.normalize_array(self.__sinogram)
+
+	def getImage(self):
+		return self.normalize_array(self.__image)
 		
 
 	def __acquisition(self):
@@ -147,7 +98,7 @@ class CTsimRadon:
 		if show:
 			plt.show()
 
-	def __normalize_array(self, a):
+	def normalize_array(self, a):
 		a_min = min(a.flatten())
 		a_max = max(a.flatten())
 
@@ -396,7 +347,7 @@ class CTsimRadon:
 		rotated = _warp_fast(reconstructed, np.linalg.inv(self.__build_rotation(90, dw, dh)))
   		#rotated = warp(reconstructed, np.linalg.inv(self.__build_rotation(-90, dw, dh)))
 
-		result = self.__normalize_array(rotated * np.pi / (2 * len(th)) )
+		result = self.normalize_array(rotated * np.pi / (2 * len(th)) )
 		
 		
 		#if(self.__detSize != 1):
