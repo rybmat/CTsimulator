@@ -80,7 +80,7 @@ class CTsimRadon:
 		reconstruction_cutted= self.__normalize_array(reconstruction_cutted)
 		
 		
-		result = np.zeros((self.__image.shape[0]*2+10, self.__image.shape[1]*2+10))
+		result = np.zeros((self.__image.shape[0]*2, self.__image.shape[1]*2))
 		result[:self.__image.shape[0] , :self.__image.shape[1]] = self.__normalize_array(self.__image)
 		result[self.__image.shape[0]: , :self.__image.shape[1]] = reconstruction_cutted
 		result[:self.__image.shape[0] , self.__image.shape[1]:] = resize(self.__normalize_array(self.__sinogram), (self.__image.shape[0], self.__image.shape[1]))
