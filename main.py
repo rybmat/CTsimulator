@@ -84,7 +84,7 @@ class CTSimGui(QtGui.QMainWindow):
 		self.rot_step_sb = spinBox(leftFrame, "Rotation Step [deg]:      ", 200, 10, 1, 90, 30, 5,100)
 
 		#detectors number
-		self.det_num_sb = spinBox(leftFrame, "Detectors Number:       ", 200, 10, 1, 999999, 500, 5, 135)
+		self.det_num_sb = spinBox(leftFrame, "Detectors Number:       ", 200, 10, 50, 999999, 500, 5, 135)
 
 		#detector size
 		self.det_size_sb = spinBox(leftFrame, "Detector Size [px]:        ", 200, 10, 2, 100, 2, 5, 170)
