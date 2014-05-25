@@ -255,12 +255,6 @@ class CTsimRadon:
 
 	def __iradon(self, radon_image, theta=None, output_size=None, fft_filter=False, filter="ramp"):
 
-		if radon_image.ndim != 2:
-			raise ValueError('The input image must be 2-D')
-
-		if len(theta) != radon_image.shape[1]:
-			raise ValueError("The given ``theta`` does not match the number of projections in ``radon_image``.")
-
 		th = (np.pi / 180.0) * theta
 
 		n = radon_image.shape[0]
