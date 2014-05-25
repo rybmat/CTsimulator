@@ -5,7 +5,6 @@ from skimage.io import imread
 import sys
 from PyQt4 import QtGui, QtCore
 import numpy as np
-from PIL import Image
 
 def spinBox(parent, prefix, minSizeX, minSizeY, minVal, maxVal, defVal, posX, posY):
 	sb = QtGui.QSpinBox(parent)
