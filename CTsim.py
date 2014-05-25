@@ -185,10 +185,7 @@ class CTsimRadon:
 
 		view = np.zeros(self.__detNum)
 		for i in xrange(0, self.__detNum):
-			#if(self.__firstGen == 0):
 			view[i] = self.__brasenham(emmitter_pos, detector_pos, rotated)
-			#else:
-			#	view[i] = self.__brasenham([emmitter_pos[0], detector_pos[1]], detector_pos, rotated)
 			detector_pos[1] += self.__detSize
 
 
