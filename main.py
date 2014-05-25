@@ -195,6 +195,9 @@ class CTSimGui(QtGui.QMainWindow):
 		try:
 			self.pix_label.setPixmap(QtGui.QPixmap.fromImage(self.prepareImage((self.upCut_sl.value() + 1) / 100.0, (self.downCut_sl.value() + 1) / 100.0)))	
 			self.pix_label.adjustSize()
+
+			if self.upCut_sl.value() >= self.downCut_sl.value():
+				self.downCut_sl.setValue(self.upCut_sl.value()+5)
 		except:
 			pass
 
