@@ -278,12 +278,16 @@ class CTSimGui(QtGui.QMainWindow):
 		reconstruction_cutted = self.a.normalize_array(reconstruction_cutted)
 		
 		
-		line = 1
+		line = 8
 		result = np.zeros((image.shape[0]*2+line, image.shape[1]*2+line))
 		result[:image.shape[0] , :image.shape[1]] = image
 		result[image.shape[0]+line: , :image.shape[1]] = reconstruction_cutted
 		result[:image.shape[0] , image.shape[1]+line:] = resize(sinogram, (image.shape[0], image.shape[1]))
 		result[image.shape[0]+line: , image.shape[1]+line:] = self.a.normalize_array(reconstruction_cutted - image)
+
+		#cross between images
+		result[image.shape[0]:image.shape[0]+line , :] = 1
+		result[: , image.shape[0]:image.shape[0]+line] = 1
 		
 		result = result*255
 		result = np.require(result, np.uint8, 'C')
