@@ -1,6 +1,7 @@
 import CTsim
 from skimage import data_dir
 from skimage.transform import resize
+from skimage.io import imread
 import sys
 from PyQt4 import QtGui, QtCore
 import numpy as np
@@ -86,7 +87,7 @@ class CTSimGui(QtGui.QMainWindow):
 		self.det_num_sb = spinBox(leftFrame, "Detectors Number:       ", 200, 10, 1, 999999, 500, 5, 135)
 
 		#detector size
-		self.det_size_sb = spinBox(leftFrame, "Detector Size [px]:        ", 200, 10, 1, 100, 2, 5, 170)
+		self.det_size_sb = spinBox(leftFrame, "Detector Size [px]:        ", 200, 10, 2, 100, 2, 5, 170)
 
 		#emmiter distance
 		self.emm_dist_sb = spinBox(leftFrame, "Emmiter Distance [px]: ", 200, 10, 1, 999999, 500, 5, 205)
@@ -214,6 +215,21 @@ class CTSimGui(QtGui.QMainWindow):
 		 
 
 	def runAlgorithm(self):
+		if self.fname == "":
+			file_path =  data_dir + "/phantom.png"
+		else:
+			file_path = self.fname
+		
+		if(self.firstGen==0):
+			image = imread(str(file_path), as_grey=True)
+			output_size = ( image.shape[0] if (image.shape[0]>image.shape[1]) else image.shape[1])
+			scale = 1.0/self.det_size_sb.value() * (self.emm_dist_sb.value() + output_size+self.det_dist_sb.value())/(self.emm_dist_sb.value() + output_size/2)
+			#print "GUI scale = ", scale
+			if(scale>1.0):
+				print "can't reconstruct full image from sinogram, increase detector size / emmiter ditance or decrese detectors distance"
+				QtGui.QMessageBox.information(self, 'Message', "Can't reconstruct full image from sinogram, increase detector size / emmiter ditance or decrese detectors distance", QtGui.QMessageBox.Ok)
+				return
+		
 		if (self.rot_step_sb.value() > self.rot_angle_sb.value()):
 			print "rotation step have to be smaller or equal than rotation angle"
 			QtGui.QMessageBox.information(self, 'Message', "Rotation step have to be smaller or equal than rotation angle", QtGui.QMessageBox.Ok)
@@ -231,11 +247,6 @@ class CTSimGui(QtGui.QMainWindow):
 		print "Rays Mode: ", self.firstGen
 		print "============"
 
-
-		if self.fname == "":
-			file_path =  data_dir + "/phantom.png"
-		else:
-			file_path = self.fname
 
 		self.a = CTsim.CTsimRadon(image_path=str(file_path), angle=self.rot_angle_sb.value(), step=self.rot_step_sb.value(), detNum=self.det_num_sb.value(), detSize=self.det_size_sb.value(), emmDist=self.emm_dist_sb.value(), detDist=self.det_dist_sb.value(), fft=self.fft_cb.isChecked(), filter=self.fft_filter_type, firstGen=self.firstGen)
 		self.a.run(show = False)
@@ -267,11 +278,12 @@ class CTSimGui(QtGui.QMainWindow):
 		reconstruction_cutted = self.a.normalize_array(reconstruction_cutted)
 		
 		
-		result = np.zeros((image.shape[0]*2, image.shape[1]*2))
+		line = 1
+		result = np.zeros((image.shape[0]*2+line, image.shape[1]*2+line))
 		result[:image.shape[0] , :image.shape[1]] = image
-		result[image.shape[0]: , :image.shape[1]] = reconstruction_cutted
-		result[:image.shape[0] , image.shape[1]:] = resize(sinogram, (image.shape[0], image.shape[1]))
-		result[image.shape[0]: , image.shape[1]:] = self.a.normalize_array(reconstruction_cutted - image)
+		result[image.shape[0]+line: , :image.shape[1]] = reconstruction_cutted
+		result[:image.shape[0] , image.shape[1]+line:] = resize(sinogram, (image.shape[0], image.shape[1]))
+		result[image.shape[0]+line: , image.shape[1]+line:] = self.a.normalize_array(reconstruction_cutted - image)
 		
 		result = result*255
 		result = np.require(result, np.uint8, 'C')

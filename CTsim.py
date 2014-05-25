@@ -29,6 +29,13 @@ class CTsimRadon:
 		plt.figure(figsize=(10, 10))
 		
 		self.__image = self.normalize_array(self.__image)
+		if(self.__image.shape[0] != self.__image.shape[1]):
+			side = ( self.__image.shape[0] if (self.__image.shape[0]>self.__image.shape[1]) else self.__image.shape[1])
+			padded_image = np.zeros((side,side))
+			y0 = int((side-self.__image.shape[0])/2)
+			x0 = int((side-self.__image.shape[1])/2)
+			padded_image[y0:y0+self.__image.shape[0], x0:x0+self.__image.shape[1]] = self.__image
+			self.__image = padded_image 
 
 	def run(self, show=True):
 		start = time.clock()
@@ -311,16 +318,15 @@ class CTsimRadon:
 		radon_filtered = radon_filtered[:radon_image.shape[0], :]
 		
 		
-		output_size2 = output_size
 		
-		reconstructed = np.zeros((output_size2, output_size2))
+		reconstructed = np.zeros((output_size, output_size))
 		mid_index = np.ceil(n / 2.0)
 
-		x = output_size2
-		y = output_size2
+		x = output_size
+		y = output_size
 		[X, Y] = np.mgrid[0.0:x, 0.0:y]
-		xpr = X - int(output_size2) // 2
-		ypr = Y - int(output_size2) // 2
+		xpr = X - int(output_size) // 2
+		ypr = Y - int(output_size) // 2
 
 	 
 
@@ -359,28 +365,18 @@ class CTsimRadon:
 			return result
 			
 
-		#if(self.__detSize != 1):
-		print("A %d %d") % (result.shape[0], result.shape[1])
+
+		#print("A %d %d") % (result.shape[0], result.shape[1])
 		
 		if(self.__firstGen==0):
 			scale = 1/self.__detSize * (self.__emmiterDistance + output_size+self.__detectorsDistance)/(self.__emmiterDistance + output_size/2)
-		else:
-			scale = 1/self.__detSize
-		
-		print("scale %f") % (scale)
-		
-		margin = (output_size-output_size*scale)/2
-		
-		if(margin != 0):
-			result = result[margin:-margin , margin:-margin]
-				
-		print("B %d %d") % (result.shape[0], result.shape[1])
-		
-		result = rescale(result, (1/scale, 1/scale))
-		
-		print("C %d %d") % (result.shape[0], result.shape[1])
-
-		result = result[0:output_size, 0:output_size]
-				
-		
+			#print("scale %f") % (scale)
+			margin = (output_size-output_size*scale)/2
+			if(margin != 0):
+				result = result[margin:-margin , margin:-margin]
+			#print("B %d %d") % (result.shape[0], result.shape[1])
+			result = rescale(result, (1/scale, 1/scale))
+			#print("C %d %d") % (result.shape[0], result.shape[1])
+			result = result[0:output_size, 0:output_size]
+					
 		return result
